@@ -217,7 +217,8 @@ const FILLERS = ["um","uh","erm","er","like","you know","i mean","basically","ac
 
 /* ===================== UTILIDADES ===================== */
 const $ = id => document.getElementById(id);
-const NUM = {"two":"2","three":"3","four":"4","five":"5","six":"6","ten":"10","seventy":"70","thirty-four":"34","1st":"first"};
+/* Cifras → palabras (no al revés): así "three" sigue siendo comparable con "tree" para detectar /θ/ */
+const NUM = {"2":"two","3":"three","4":"four","5":"five","6":"six","10":"ten","70":"seventy","34":"thirty-four","1st":"first"};
 function norm(s){
   return (s||"").toLowerCase().replace(/[’']/g,"'").replace(/[^a-z0-9' -]/g," ")
     .split(/\s+/).filter(Boolean).map(w=>NUM[w]||w.replace(/^'+|'+$/g,""));
@@ -320,7 +321,20 @@ function analizar(){
   const low=" "+txt.toLowerCase().replace(/[^a-z' ]/g," ").replace(/\s+/g," ")+" ";
   const palabras=norm(txt); const n=palabras.length;
   let fill=0; const fdet={};
-  for(const f of FILLERS){ const m=low.match(new RegExp(" "+f+" ","g")); if(m){ fill+=m.length; fdet[f]=m.length; } }
+  const LIKE_OK=/(i'd|i|we|you|they|he|she|would|don't|didn't|looks?|feels?|sounds?|seems?|something|things?)\s+like\s+$/;
+  const plano=" "+txt.toLowerCase().replace(/[^a-z'.,;?! ]/g," ").replace(/\s+/g," ")+" ";
+  for(const f of FILLERS){
+    // límites de palabra con lookaround: "um um" cuenta 2
+    const re=new RegExp("(?<![a-z'])"+f.replace(/ /g,"\\s+")+"(?![a-z'])","g"); let m, c=0;
+    while((m=re.exec(plano))){
+      const antes=plano.slice(0,m.index), despues=plano.slice(m.index+m[0].length);
+      if(f==="like" && LIKE_OK.test(antes+"like ")) continue;                       // "I'd like to", "looks like" no son muletilla
+      if(f==="so" && !(/(^\s*|[.,;?!]\s*)$/.test(antes)) ) continue;               // "so" solo cuenta al empezar frase
+      if(f==="so" && /^\s*(that|far|much|many)\b/.test(despues)) continue;          // "so that", "so far"
+      c++;
+    }
+    if(c){ fill+=c; fdet[f]=c; }
+  }
   const seg=(t0&&t1)?(t1-t0)/1000:null; const wpm=seg&&seg>5?Math.round(n/(seg/60)):null;
   $("kWpm").textContent=wpm??"–"; $("kFill").textContent=fill; $("kWords").textContent=n;
   const rep={}; for(const w of palabras) if(w.length>3) rep[w]=(rep[w]||0)+1;
