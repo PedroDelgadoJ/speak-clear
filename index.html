@@ -120,7 +120,7 @@ ul.cov{list-style:none;padding:0;margin:0;display:flex;flex-direction:column;gap
     </div>
     <p class="note">🔇 ¿No oyes nada? Quita el modo silencio y sube el volumen.</p>
     <button class="btn rec" id="bHablar">🎤 Hablar</button>
-    <div class="live" id="live"></div>
+    <div class="live" id="live"></div><button class="btn sm hidden reintentar" type="button" id="bReint">🔁 Toca para reintentar</button>
     <div class="row"><button class="btn sm reMic" type="button" id="bReMic">🔄 Reiniciar micrófono</button><button class="btn sm diagBtn" type="button" id="bDiag" title="Diagnóstico del micrófono" aria-label="Diagnóstico del micrófono">🩺</button><span class="note micEst" id="micEst" aria-live="polite">⏹ Micrófono: parado</span></div>
     <div id="diagBox" class="hidden"><p class="note">🩺 Diagnóstico del micrófono: haz una captura y pásasela a Claude.</p><pre id="diagLog" class="diaglog"></pre></div>
     <div>
@@ -162,7 +162,7 @@ ul.cov{list-style:none;padding:0;margin:0;display:flex;flex-direction:column;gap
       <div class="gbody" id="gBody"></div>
     </details>
     <button class="btn rec" id="bResp">🎤 Responder (habla 30-90 s)</button>
-    <div class="live" id="live2"></div>
+    <div class="live" id="live2"></div><button class="btn sm hidden reintentar" type="button" id="bReint2">🔁 Toca para reintentar</button>
     <div class="row"><button class="btn sm reMic" type="button" id="bReMic2">🔄 Reiniciar micrófono</button><button class="btn sm diagBtn" type="button" id="bDiag2" title="Diagnóstico del micrófono" aria-label="Diagnóstico del micrófono">🩺</button><span class="note micEst" id="micEst2" aria-live="polite">⏹ Micrófono: parado</span></div>
     <div>
       <label class="lbl" for="txt2">Tu respuesta</label>
@@ -535,6 +535,19 @@ function textoErrorMic(code,ios){
 function textoEstadoMic(est,det){
   return est==="escuchando"?"🎙️ Micrófono: escuchando"+(det?" · "+det:""):est==="error"?"⚠️ Micrófono: error ("+(det||"?")+")":"⏹ Micrófono: parado"+(det?" · "+det:"");
 }
+/* T34: qué hacer cuando el reconocedor termina. En iOS, stop() suele acabar en 'aborted' sin resultado final:
+   se usa el último parcial. Sin texto en iOS: botón «Toca para reintentar» (dentro del gesto) y plan B tras 2 fallos. */
+function planFinMic(o){
+  const fin=(o.finalTxt||"").trim(), par=(o.parcial||"").trim();
+  const texto=fin||par, origen=fin?"final":par?"parcial":"";
+  const fallos=texto?0:(o.fallos||0)+1;
+  let aviso="";
+  if(!texto){
+    if(o.ios&&!o.voz&&(!o.error||o.error==="aborted"||o.error==="no-speech")) aviso="El iPhone no detectó voz (no llegó onspeechstart ni ningún resultado)"+(o.error?" · "+o.error:"")+". Toca para reintentar, habla justo después y deja que termine sola al callar.";
+    else if(o.ios&&o.error==="aborted") aviso="El iPhone cortó la escucha sin texto (aborted). Toca para reintentar y deja que termine sola al callar.";
+  }
+  return {texto,origen,fallos,aviso,reintentar:!texto&&!!o.ios,planB:!texto&&!!o.ios&&fallos>=2};
+}
 /*FIN_PURAS*/
 
 /* ===================== UTILIDADES ===================== */
@@ -741,66 +754,86 @@ let rec=null, destino=null, escuchando=false, vigiaFin=null, fallosSeguidos=0, d
 const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
 /* iOS (incluido iPad que se presenta como Mac con pantalla táctil): webkitSpeechRecognition es inestable */
 const ES_IOS = /iPhone|iPad|iPod/i.test(navigator.userAgent) || (/Macintosh/.test(navigator.userAgent) && navigator.maxTouchPoints>1);
-function setRec(btn,on){ btn.classList.toggle("on",on); btn.textContent=on?"⏹ Parar":(btn.id==="bHablar"?"🎤 Hablar":"🎤 Responder (habla 30-90 s)"); }
+const ESPERA_PARAR_IOS = 1500;   // T34: en iOS, stop() inmediato descarta el audio → se espera 1,5 s (o resultado/onspeechend)
+function setRec(btn,on,txt){ btn.classList.toggle("on",on);
+  btn.textContent = txt || (on ? (ES_IOS?"⏹ Escuchando… termina sola al callar":"⏹ Parar") : (btn.id==="bHablar"?"🎤 Hablar":"🎤 Responder (habla 30-90 s)")); }
 /* Diagnóstico (?diag=1 o botón 🩺): eventos del reconocedor con ms desde que se pulsó 🎤 */
 function diag(ev,det){ const p=$("diagLog"); if(!p) return; const ms=diagT0?Math.round(performance.now()-diagT0):0;
   p.textContent+=(ms+" ms").padStart(9)+"  "+ev+(det?"  "+det:"")+"\n"; p.scrollTop=p.scrollHeight; }
+function verReintento(btn,on){ const b=$(btn.id==="bHablar"?"bReint":"bReint2"); if(b) b.classList.toggle("hidden",!on); }
 /* T32: suelta el reconocedor actual SIN disparar sus eventos: nunca quedan dos abiertos ni uno colgado */
 function soltarRec(){ clearTimeout(vigiaFin); const r=rec; rec=null; escuchando=false;
-  if(r){ try{ r.onstart=r.onaudiostart=r.onspeechstart=r.onspeechend=r.onaudioend=r.onend=r.onresult=r.onerror=null; r.abort(); }catch(e){} }
+  if(r){ clearTimeout(r._tParar); try{ r.onstart=r.onaudiostart=r.onspeechstart=r.onspeechend=r.onaudioend=r.onend=r.onresult=r.onerror=null; r.abort(); }catch(e){} }
   document.querySelectorAll("#bHablar,#bResp").forEach(b=>setRec(b,false)); }
 function pararMic(){ if(rec){ soltarRec(); diag("cerrado","cambio de modo"); pintarMic("parado","cerrado al cambiar de modo"); } }
-function reiniciarMic(){ soltarRec(); destino=null; fallosSeguidos=0; $("live").textContent=""; $("live2").textContent=""; diag("reiniciar"); pintarMic("parado","reiniciado · pulsa 🎤 y habla"); }
+function reiniciarMic(){ soltarRec(); destino=null; fallosSeguidos=0; $("live").textContent=""; $("live2").textContent=""; ["bReint","bReint2"].forEach(id=>$(id)&&$(id).classList.add("hidden")); diag("reiniciar"); pintarMic("parado","reiniciado · pulsa 🎤 y habla"); }
 function planB(btn,live){   // iPhone sin texto tras 2 intentos: dictado del teclado
   const area=btn.id==="bHablar"?$("txt"):$("txt2"), boton=btn.id==="bHablar"?$("bComp"):$("bAnal");
   live.textContent=(live.textContent?live.textContent+" · ":"")+"📱 El micro de la página no está transcribiendo. Plan B: toca la caja de texto, usa el 🎤 del teclado del iPhone y pulsa «"+boton.textContent+"».";
   boton.classList.add("destacar"); area.focus(); }
 function pulsarMic(btn,area,live){
   if(!SR){ live.textContent="Este navegador no tiene reconocimiento de voz: usa Chrome (Android) o Safari (iPhone), o el micrófono del teclado."; pintarMic("error","sin SpeechRecognition"); area.focus(); return; }
-  if(escuchando&&rec&&destino&&destino.btn===btn){   // 2.º toque en el mismo botón = parar; si onend no llega en 3 s, se fuerza
-    try{ rec.stop(); }catch(e){} diag("stop()","usuario");
-    clearTimeout(vigiaFin); vigiaFin=setTimeout(()=>{ if(rec){ const l=destino&&destino.live; soltarRec(); diag("forzado","onend no llegó"); if(l) l.textContent=textoErrorMic("sin-cierre",ES_IOS); pintarMic("error","sin-cierre"); } },3000);
-    return; }
+  if(escuchando&&rec&&destino&&destino.btn===btn){ rec._pedirParar("usuario"); return; }   // 2.º toque en el mismo botón = parar
   diagT0=performance.now(); diag("— pulsar 🎤 —",(ES_IOS?"iOS":"no iOS")+" · "+btn.id);
-  arrancar(btn,area,live,false);
+  arrancar(btn,area,live);
 }
-function arrancar(btn,area,live,esReintento){
+function arrancar(btn,area,live){
   soltarRec();   // cualquier reconocedor anterior (otro botón, otro modo, colgado) se cierra y se crea uno NUEVO
   callar();      // la voz (palabra en rojo, modelo) no puede seguir sonando mientras se escucha
-  destino={btn,area,live}; area.value=""; if(btn.id==="bResp"&&!esReintento){t0=Date.now();t1=null;}
+  verReintento(btn,false);
+  destino={btn,area,live}; area.value=""; if(btn.id==="bResp"){t0=Date.now();t1=null;}
   const resBox = btn.id==="bHablar" ? $("res") : $("res2"); resBox.classList.add("hidden");   // borra el resultado anterior
-  if(!esReintento) window._intentos=(window._intentos||0)+1; const nIntento=window._intentos;
+  window._intentos=(window._intentos||0)+1; const nIntento=window._intentos;
   const r=new SR(); rec=r; r.lang="en-US"; r.maxAlternatives=1;
   r.continuous = ES_IOS ? false : (btn.id==="bResp");       // iOS: nunca continuous
-  r.interimResults = !ES_IOS;                               // iOS: sin parciales (fallan a menudo)
-  let finalTxt="", ultimo="", vigia=null, error="", arrancado=false;
-  const terminar=()=>{ try{ r.stop(); }catch(e){} diag("stop()","1,8 s de silencio"); };
+  r.interimResults = true;                                  // T34: también en iOS, para guardar siempre el último parcial
+  let finalTxt="", ultimo="", vigia=null, error="", arrancado=false, voz=false, nRes=0, parando=false, cerrado=false;
   const mio=()=>rec===r;
-  r.onstart=()=>{ diag("onstart"); if(!mio()) return; arrancado=true; escuchando=true; setRec(btn,true); pintarMic("escuchando","intento "+nIntento+(esReintento?" (reintento)":"")); live.textContent="🎙️ Intento n.º "+nIntento+(esReintento?" · reintento":"")+" · escuchando…"; };
-  r.onaudiostart=()=>diag("onaudiostart"); r.onspeechstart=()=>diag("onspeechstart");
-  r.onspeechend=()=>diag("onspeechend"); r.onaudioend=()=>diag("onaudioend");
-  r.onresult=e=>{ if(!mio()) return; let parcial=""; for(let i=e.resultIndex;i<e.results.length;i++){ const x=e.results[i]; if(x.isFinal) finalTxt+=(finalTxt?" ":"")+x[0].transcript.trim(); else parcial+=x[0].transcript; }
-    ultimo=(finalTxt+" "+parcial).trim(); diag("onresult",JSON.stringify(ultimo)); area.value=ultimo; live.textContent="🎙️ Intento n.º "+nIntento+" · "+(parcial||"…");
-    if(btn.id==="bHablar"&&!ES_IOS){ clearTimeout(vigia); vigia=setTimeout(terminar,1800); } };   // iOS: sin vigía, termina solo
-  r.onerror=e=>{ error=(e&&e.error)||"desconocido"; diag("onerror",error); if(!mio()) return; escuchando=false; setRec(btn,false); live.textContent=textoErrorMic(error,ES_IOS); pintarMic("error",error); };
-  r.onend=()=>{ diag("onend"); clearTimeout(vigia); clearTimeout(vigiaFin); if(!mio()) return; rec=null; escuchando=false; setRec(btn,false); if(btn.id==="bResp") t1=Date.now();
-    area.value=(finalTxt||ultimo).trim();
-    if(area.value){ fallosSeguidos=0; $("bComp").classList.remove("destacar"); $("bAnal").classList.remove("destacar");
-      live.textContent="✅ Intento n.º "+nIntento+" corregido"+(error?" (aviso: "+error+")":""); pintarMic("parado","intento "+nIntento+" corregido"); (btn.id==="bHablar"?comprobar:analizar)(); return; }
-    // sin texto
-    if(ES_IOS&&!esReintento&&(!error||error==="no-speech")){ diag("reintento","onend sin texto (iOS)"); arrancar(btn,area,live,true); return; }
-    fallosSeguidos++;
-    if(error){ live.textContent=textoErrorMic(error,ES_IOS); pintarMic("error",error); }   // no se tapa el error real
+  const hacerStop=motivo=>{ clearTimeout(r._tParar); if(r._stopHecho) return; r._stopHecho=true; try{ r.stop(); }catch(e){} diag("stop()",motivo);
+    clearTimeout(vigiaFin); vigiaFin=setTimeout(()=>{ if(rec===r){ diag("forzado","onend no llegó en 3 s"); try{ r.onend=r.onerror=r.onresult=null; r.abort(); }catch(e){} fin("forzado"); } },3000); };
+  r._pedirParar=motivo=>{
+    if(!ES_IOS){ hacerStop(motivo); return; }                    // Android/Chrome: igual que antes
+    if(parando) return; parando=true; setRec(btn,true,"⏳ Terminando…"); live.textContent="⏳ Terminando… (no cortes: espera a que procese)";
+    diag("parar pedido",motivo+" · stop() en "+ESPERA_PARAR_IOS+" ms o al llegar resultado/onspeechend");
+    r._tParar=setTimeout(()=>hacerStop("tras "+ESPERA_PARAR_IOS+" ms"),ESPERA_PARAR_IOS); };
+  r.onstart=()=>{ diag("onstart"); if(!mio()) return; arrancado=true; escuchando=true; setRec(btn,true); pintarMic("escuchando","intento "+nIntento); live.textContent="🎙️ Intento n.º "+nIntento+" · "+(ES_IOS?"escuchando… termina sola al callar":"escuchando…"); };
+  r.onaudiostart=()=>diag("onaudiostart");
+  r.onspeechstart=()=>{ voz=true; diag("onspeechstart"); };
+  r.onspeechend=()=>{ diag("onspeechend"); if(mio()&&parando) hacerStop("onspeechend"); };
+  r.onaudioend=()=>diag("onaudioend");
+  r.onresult=e=>{ if(!mio()) return; nRes++; let parcial="", hayFinal=false; for(let i=e.resultIndex;i<e.results.length;i++){ const x=e.results[i]; if(x.isFinal){ hayFinal=true; finalTxt+=(finalTxt?" ":"")+x[0].transcript.trim(); } else parcial+=x[0].transcript; }
+    if(parcial.trim()||hayFinal) ultimo=(finalTxt+" "+parcial).trim();   // el último parcial se guarda SIEMPRE
+    diag("onresult",(hayFinal?"isFinal=true":"isFinal=false")+" · "+ultimo.length+" car · "+JSON.stringify(ultimo)); area.value=ultimo; if(!parando) live.textContent="🎙️ Intento n.º "+nIntento+" · "+(parcial||ultimo||"…");
+    if(ES_IOS){ if(parando&&hayFinal) hacerStop("resultado final"); return; }   // iOS: sin vigía, termina sola
+    if(btn.id==="bHablar"){ clearTimeout(vigia); vigia=setTimeout(()=>hacerStop("1,8 s de silencio"),1800); } };
+  r.onerror=e=>{ error=(e&&e.error)||"desconocido"; diag("onerror",error); if(!mio()) return; escuchando=false; setRec(btn,false);
+    if(!(ES_IOS&&ultimo)){ live.textContent=textoErrorMic(error,ES_IOS); pintarMic("error",error); } };   // con parcial en iOS, decide onend
+  const fin=motivo=>{ if(cerrado) return; cerrado=true; clearTimeout(vigia); clearTimeout(vigiaFin); clearTimeout(r._tParar); if(!mio()) return; rec=null; escuchando=false; setRec(btn,false); if(btn.id==="bResp") t1=Date.now();
+    const p=planFinMic({ios:ES_IOS,finalTxt,parcial:ultimo,error,voz:voz||nRes>0,fallos:fallosSeguidos});
+    diag("fin",(p.origen||"sin texto")+" · onspeechstart "+(voz?"sí":"NO")+" · "+nRes+" onresult"+(error?" · "+error:"")+(motivo?" · "+motivo:""));
+    area.value=p.texto; fallosSeguidos=p.fallos;
+    if(p.texto){ $("bComp").classList.remove("destacar"); $("bAnal").classList.remove("destacar");
+      if(p.origen==="parcial") diag("⚠️ usa el último parcial","no llegó resultado final · "+p.texto.length+" car");
+      live.textContent="✅ Intento n.º "+nIntento+" corregido"+(p.origen==="parcial"?" (con el último parcial)":"")+(error&&p.origen!=="parcial"?" (aviso: "+error+")":"");
+      pintarMic("parado","intento "+nIntento+" corregido"+(p.origen==="parcial"?" · parcial":"")); (btn.id==="bHablar"?comprobar:analizar)(); return; }
+    if(ES_IOS&&!voz&&!nRes) diag("⚠️ sin audio detectado","no llegó onspeechstart ni onresult");
+    if(p.aviso){ live.textContent=p.aviso; pintarMic("error",error||"sin voz"); }
+    else if(error){ live.textContent=textoErrorMic(error,ES_IOS); pintarMic("error",error); }   // no se tapa el error real
     else { live.textContent="No te he entendido: el micrófono se cerró sin texto. Pulsa 🎤 y repite."; pintarMic("parado","sin texto"); }
-    if(ES_IOS&&fallosSeguidos>=2) planB(btn,live); };
+    if(p.reintentar) verReintento(btn,true);   // T34: sin reintento automático (fuera del gesto daba not-allowed)
+    if(p.planB) planB(btn,live); };
+  r.onend=()=>{ diag("onend"); fin(""); };
   try{ r.start(); diag("start()",(r.continuous?"continuous ":"")+(r.interimResults?"interim":"sin interim")); pintarMic("escuchando","arrancando…");
-    setTimeout(()=>{ if(rec===r&&!arrancado){ soltarRec(); diag("sin onstart","6 s"); live.textContent=textoErrorMic("sin-arranque",ES_IOS); pintarMic("error","sin-arranque"); } },6000); }
-  catch(err){ soltarRec(); const n=(err&&err.name)||"start"; diag("start() falló",n); fallosSeguidos++; live.textContent="No se pudo iniciar el micrófono ("+n+"). Pulsa 🔄 Reiniciar micrófono."; pintarMic("error",n); if(ES_IOS&&fallosSeguidos>=2) planB(btn,live); }
+    setTimeout(()=>{ if(rec===r&&!arrancado){ soltarRec(); diag("sin onstart","6 s"); live.textContent=textoErrorMic("sin-arranque",ES_IOS); pintarMic("error","sin-arranque"); if(ES_IOS) verReintento(btn,true); } },6000); }
+  catch(err){ soltarRec(); const n=(err&&err.name)||"start"; diag("start() falló",n); fallosSeguidos++; live.textContent="No se pudo iniciar el micrófono ("+n+"). Pulsa 🔄 Reiniciar micrófono."; pintarMic("error",n); if(ES_IOS){ verReintento(btn,true); if(fallosSeguidos>=2) planB(btn,live); } }
 }
 function iniciarCapacidades(){
   $("estadoMic").textContent = SR ? "🎤 Micrófono del navegador · sin Claude" : "Sin reconocimiento de voz · usa el teclado";
   pintarMic(SR?"parado":"error",SR?"":"sin SpeechRecognition");
   if(/[?&]diag=1/.test(location.search)) $("diagBox").classList.remove("hidden");
+  /* T34: «Toca para reintentar» arranca DENTRO del gesto del usuario (el reintento automático podía dar not-allowed) */
+  $("bReint").addEventListener("click",()=>{ diagT0=performance.now(); diag("— reintento (toque) —"); pulsarMic($("bHablar"),$("txt"),$("live")); });
+  $("bReint2").addEventListener("click",()=>{ diagT0=performance.now(); diag("— reintento (toque) —"); pulsarMic($("bResp"),$("txt2"),$("live2")); });
   diag("inicio",(ES_IOS?"iOS":"no iOS")+" · SR="+(SR?"sí":"no")+" · "+navigator.userAgent);
   cargarProgreso();
 }
