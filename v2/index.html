@@ -1,0 +1,408 @@
+<!doctype html><html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="mobile-web-app-capable" content="yes"><meta name="theme-color" content="#1f6feb"><style>:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0}</style><title>Speak Clear</title></head><body>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Sora:wght@500;700&family=Inter:wght@400;500;600&family=Noto+Sans:wght@400;500&display=swap">
+<style>
+/* Layout: una tarjeta de práctica a pantalla de móvil, pestañas abajo de la cabecera; frase grande, controles grandes al pulgar */
+:root{
+  --bg:#f3f5f8; --surface:#ffffff; --ink:#14202e; --muted:#5b6878; --line:#d9e0e8;
+  --accent:#1f6feb; --accent-ink:#ffffff; --signal:#e8590c;
+  --ok:#1a7f4b; --ok-bg:#e3f4ea; --bad:#c2321f; --bad-bg:#fbe7e4; --warn-bg:#fff2dc;
+  --f-display:"Sora",system-ui,sans-serif; --f-body:"Inter",system-ui,sans-serif; --f-ipa:"Noto Sans","Segoe UI",sans-serif;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#0e141b; --surface:#16202b; --ink:#e6edf5; --muted:#93a1b2; --line:#26323f;
+  --accent:#5b9cff; --accent-ink:#0b1320; --signal:#ff8a47;
+  --ok:#5fd393; --ok-bg:#12301f; --bad:#ff7b6b; --bad-bg:#3a1714; --warn-bg:#3a2a10; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0e141b; --surface:#16202b; --ink:#e6edf5; --muted:#93a1b2; --line:#26323f;
+  --accent:#5b9cff; --accent-ink:#0b1320; --signal:#ff8a47;
+  --ok:#5fd393; --ok-bg:#12301f; --bad:#ff7b6b; --bad-bg:#3a1714; --warn-bg:#3a2a10; color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font:15px/1.5 var(--f-body);padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+.wrap{max-width:560px;margin:0 auto;padding-block:14px 40px;display:flex;flex-direction:column;gap:14px}
+header{display:flex;align-items:baseline;justify-content:space-between;gap:8px;flex-wrap:wrap}
+h1{font:700 22px/1.1 var(--f-display);margin:0;letter-spacing:-.01em}
+h1 span{color:var(--signal)}
+.sub{color:var(--muted);font-size:13px}
+.tabs{display:grid;grid-template-columns:repeat(3,1fr);gap:4px;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:4px}
+.tabs button{border:0;background:transparent;color:var(--muted);font:600 14px var(--f-body);padding:10px 4px;border-radius:9px;cursor:pointer}
+.tabs button[aria-selected="true"]{background:var(--accent);color:var(--accent-ink)}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:16px;display:flex;flex-direction:column;gap:12px;min-width:0}
+label.lbl{font-size:12px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);font-weight:600}
+select,textarea{width:100%;font:15px var(--f-body);color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:10px}
+textarea{min-height:64px;resize:vertical}
+.target{font:600 clamp(20px,5.6vw,26px)/1.3 var(--f-display);text-wrap:balance;margin:0}
+.meta{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+.chip{font-size:12px;padding:3px 9px;border-radius:999px;background:var(--bg);border:1px solid var(--line);color:var(--muted);font-family:var(--f-ipa)}
+.row{display:flex;gap:8px;flex-wrap:wrap}
+.btn{flex:1 1 auto;min-height:48px;border-radius:12px;border:1px solid var(--line);background:var(--bg);color:var(--ink);font:600 15px var(--f-body);cursor:pointer;padding:0 14px}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.btn.rec{background:var(--signal);border-color:var(--signal);color:#fff}
+.btn:focus-visible,.tabs button:focus-visible,select:focus-visible,textarea:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+.btn[disabled]{opacity:.5}
+.live{min-height:24px;color:var(--muted);font-style:italic}
+.words{display:flex;flex-wrap:wrap;gap:6px}
+.w{padding:3px 8px;border-radius:7px;font-weight:600}
+.w.ok{background:var(--ok-bg);color:var(--ok)}
+.w.bad{background:var(--bad-bg);color:var(--bad)}
+.w.miss{background:var(--bad-bg);color:var(--bad);text-decoration:line-through}
+.score{display:flex;align-items:baseline;gap:8px}
+.score b{font:700 34px var(--f-display);font-variant-numeric:tabular-nums}
+.tip{background:var(--warn-bg);border-radius:10px;padding:10px 12px;font-size:14px}
+.tip b{font-family:var(--f-ipa)}
+.note{font-size:13px;color:var(--muted)}
+.kpis{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.kpi{background:var(--bg);border-radius:10px;padding:10px;text-align:center}
+.kpi b{display:block;font:700 22px var(--f-display);font-variant-numeric:tabular-nums}
+.kpi span{font-size:12px;color:var(--muted)}
+.vocab{display:flex;flex-wrap:wrap;gap:6px}
+.vocab button{border:1px solid var(--line);background:var(--bg);color:var(--ink);border-radius:999px;padding:6px 11px;font:500 14px var(--f-body);cursor:pointer}
+.vocab button i{font-style:normal;color:var(--muted);font-family:var(--f-ipa);font-size:12px;margin-left:4px}
+table{width:100%;border-collapse:collapse;font-size:14px}
+td,th{padding:7px 4px;border-bottom:1px solid var(--line);text-align:left}
+th{color:var(--muted);font-weight:600;font-size:12px}
+td.n{text-align:right;font-variant-numeric:tabular-nums}
+.bar{height:6px;border-radius:3px;background:var(--line);overflow:hidden}
+.bar i{display:block;height:100%;background:var(--accent)}
+.hidden{display:none}
+@media (prefers-reduced-motion:no-preference){.btn.rec.on{animation:pulse 1.2s infinite}@keyframes pulse{50%{opacity:.75}}}
+</style>
+
+<div class="wrap">
+  <header>
+    <h1>Speak<span>·</span>Clear</h1>
+    <span class="sub" id="estadoMic">Inglés americano</span>
+  </header>
+
+  <nav class="tabs" role="tablist">
+    <button role="tab" id="t-frases" aria-selected="true" data-v="frases">Frases</button>
+    <button role="tab" id="t-entrevista" aria-selected="false" data-v="entrevista">Entrevista</button>
+    <button role="tab" id="t-progreso" aria-selected="false" data-v="progreso">Progreso</button>
+  </nav>
+
+  <!-- ============ FRASES ============ -->
+  <section id="v-frases" class="card">
+    <div>
+      <label class="lbl" for="selSet">Practicar</label>
+      <select id="selSet"></select>
+    </div>
+    <p class="target" id="target">…</p>
+    <div class="meta" id="meta"></div>
+    <div class="row">
+      <button class="btn" id="bEsc">🔊 Escuchar</button>
+      <button class="btn" id="bLento">🐢 Lento</button>
+      <button class="btn" id="bSig">Siguiente →</button>
+    </div>
+    <button class="btn rec" id="bHablar">🎤 Hablar</button>
+    <div class="live" id="live"></div>
+    <div>
+      <label class="lbl" for="txt">Lo que has dicho</label>
+      <textarea id="txt" placeholder="Pulsa 🎤 Hablar, o usa el micrófono de tu teclado y luego «Comprobar»"></textarea>
+    </div>
+    <button class="btn primary" id="bComp">Comprobar</button>
+    <div id="res" class="hidden" aria-live="polite">
+      <div class="score"><b id="pct">0%</b><span class="note" id="pctTxt"></span></div>
+      <div class="words" id="words"></div>
+      <div id="tips"></div>
+    </div>
+  </section>
+
+  <!-- ============ ENTREVISTA ============ -->
+  <section id="v-entrevista" class="card hidden">
+    <div>
+      <label class="lbl" for="selQ">Pregunta de entrevista</label>
+      <select id="selQ"></select>
+    </div>
+    <p class="target" id="qText">…</p>
+    <p class="note" id="qHint"></p>
+    <div class="row">
+      <button class="btn" id="bQEsc">🔊 Oír la pregunta</button>
+    </div>
+    <button class="btn rec" id="bResp">🎤 Responder (habla 30-90 s)</button>
+    <div class="live" id="live2"></div>
+    <div>
+      <label class="lbl" for="txt2">Tu respuesta</label>
+      <textarea id="txt2" placeholder="Tu respuesta aparece aquí (o díctala con el teclado)"></textarea>
+    </div>
+    <button class="btn primary" id="bAnal">Analizar respuesta</button>
+    <div id="res2" class="hidden" aria-live="polite">
+      <div class="kpis">
+        <div class="kpi"><b id="kWpm">–</b><span>palabras/min<br>(ideal 120-160)</span></div>
+        <div class="kpi"><b id="kFill">–</b><span>muletillas</span></div>
+        <div class="kpi"><b id="kWords">–</b><span>palabras</span></div>
+      </div>
+      <div id="tips2"></div>
+    </div>
+    <div>
+      <label class="lbl">Vocabulario técnico difícil · toca para oírlo</label>
+      <div class="vocab" id="vocab"></div>
+    </div>
+  </section>
+
+  <!-- ============ PROGRESO ============ -->
+  <section id="v-progreso" class="card hidden">
+    <div class="kpis">
+      <div class="kpi"><b id="pN">0</b><span>intentos</span></div>
+      <div class="kpi"><b id="pMed">–</b><span>media</span></div>
+      <div class="kpi"><b id="pDias">0</b><span>días practicados</span></div>
+    </div>
+    <table>
+      <thead><tr><th>Categoría</th><th>Intentos</th><th class="n">Media</th></tr></thead>
+      <tbody id="pTabla"></tbody>
+    </table>
+    <p class="note" id="pNota">Tu progreso se guarda en tu cuenta (privado).</p>
+  </section>
+</div>
+
+<script>
+/* ===================== DATOS ===================== */
+const CAT = {
+ vocal_i:{n:"/ɪ/ vs /iː/ (ship-sheep)",c:"/iː/ larga y tensa (sonrisa); /ɪ/ corta y relajada, casi entre i y e. No uses la 'i' española para las dos.",p:["ship-sheep","live-leave","fill-feel","bit-beat","sit-seat","hit-heat"],f:["I live in a big city.","Please sit on this seat."]},
+ vocales_otras:{n:"/æ/ /ʌ/, /ʊ/ /uː/ (cat-cut, full-fool)",c:"/æ/ (cat) boca muy abierta, entre a y e; /ʌ/ (cut) a corta y central; /ʊ/ (full) corta, /uː/ (fool) larga.",p:["cat-cut","hat-hut","bad-bud","full-fool","pull-pool","look-luke"],f:["The black cat ran across the road.","Pull the full cup from the pool."]},
+ schwa:{n:"Vocal reducida /ə/ (banana, doctor)",c:"Las sílabas átonas se reducen a /ə/ (una 'e' neutra y floja): baNAna = bə-NA-nə, DOCtor = DOC-tə.",p:[],f:["I want to go to the doctor today.","A cup of coffee and a banana, please."]},
+ v_b:{n:"/v/ vs /b/ (very-berry)",c:"/v/ = dientes de arriba sobre el labio inferior, con vibración. /b/ = los dos labios. En español ambas suenan /b/.",p:["very-berry","vest-best","van-ban","vote-boat","curve-curb","vowel-bowel"],f:["I have a very valuable vest.","We vote by boat in November."]},
+ th_dh:{n:"/θ/ /ð/ (think, this)",c:"/θ/ (think) = la 'z' de España, lengua entre los dientes, sin voz. /ð/ (this) = igual pero con voz, como la 'd' de 'nada'.",p:["think-sink","three-tree","thin-tin","they-day","then-den","breathe-breeze","thank-tank"],f:["I think three things are there.","They thank their mother."]},
+ z_s:{n:"/z/ sonora (prize-price)",c:"/z/ es una 's' con voz (zumbido de abeja). Muchas 's' escritas suenan /z/: is, was, eyes, rose.",p:["prize-price","zoo-sue","eyes-ice","rise-rice","lose-loose","peas-peace"],f:["She won a prize for her eyes.","The zoo is closed because of the rain."]},
+ sh_ch:{n:"/ʃ/ vs /tʃ/ (ship-chip)",c:"/ʃ/ (ship) = 'shh' de silencio, continuo. /tʃ/ (chip) = la 'ch' española, con golpe inicial.",p:["ship-chip","share-chair","wash-watch","sheep-cheap","shoes-choose","cash-catch"],f:["Wash the dishes in the shop.","She shares a cheap chair."]},
+ epentesis:{n:"e- antes de s+consonante (espeak)",c:"No añadas 'e' antes de s+consonante: speak, Spain, school, student empiezan directamente con 'ssss'.",p:["speak-espeak","school-eschool","student-estudent","star-estar","stay-estay"],f:["I speak Spanish at school.","The students start at six."]},
+ final_ed:{n:"Final -ed (worked, wanted)",c:"-ed suena /t/ tras sordas (worked = workt), /d/ tras sonoras (played), /ɪd/ solo tras t/d (wanted). No lo omitas.",p:["work-worked","play-played","want-wanted","walk-walked","need-needed","build-built","deploy-deployed"],f:["I worked and played yesterday.","She walked home and needed a rest."]},
+ final_s:{n:"Final -s (likes, books)",c:"Pronuncia la -s final (likes /s/, dogs /z/, watches /ɪz/). Si la pierdes cambias persona y número.",p:["like-likes","book-books","cat-cats","watch-watches","dog-dogs","work-works","model-models"],f:["She likes books and cats.","He works for two companies."]},
+ acento:{n:"Acento de palabra (PHOtograph / phoTOgraphy)",c:"El acento cambia de sitio: PHOtograph, phoTOgraphy. Exagera la sílaba tónica y reduce las demás.",p:[],f:["Take a photograph for the photography class.","We need to develop a new development plan."]},
+ linking:{n:"Ritmo y enlace (turn it off → tur-ni-toff)",c:"El inglés enlaza consonante final + vocal inicial: 'turn it off' = 'tur-ni-toff'. Sin pausas entre palabras.",p:[],f:["Turn it off and on again.","Pick it up and put it away."]}
+};
+/* Frases profesionales adaptadas al perfil real de Pedro (NTT Data, ETL, Airflow, Máster IA) */
+const TEMAS = {
+ entrevista:{n:"💼 Entrevista (tu perfil)",f:[
+  ["I'm a data engineer with almost two years of experience at NTT Data.","th_dh"],
+  ["I studied mathematics and then a master's degree in artificial intelligence.","schwa"],
+  ["I built and maintained ETL pipelines with Airflow and Oracle.","final_ed"],
+  ["I worked closely with the client to understand their requirements.","final_ed"],
+  ["I think the main challenge was the quality of the data.","th_dh"],
+  ["I enjoy solving business problems with data and machine learning.","z_s"],
+  ["I'm very interested in this role because I want to work with customers.","v_b"],
+  ["My strength is that I can explain technical results simply.","epentesis"],
+  ["I'm currently building a retrieval system with a local language model.","vocal_i"],
+  ["I'd like to grow into a forward deployed engineer role.","final_ed"]]},
+ proyecto:{n:"📊 Presentar un proyecto",f:[
+  ["This project predicts daily demand for seventy products.","th_dh"],
+  ["We built a pipeline that cleans and validates the data.","final_s"],
+  ["The model reduced the error by thirty-four percent.","final_ed"],
+  ["The results show a big improvement over the baseline.","vocal_i"],
+  ["Let me walk you through the architecture.","linking"],
+  ["The next step is to evaluate it in production.","schwa"],
+  ["These three metrics measure the business value.","th_dh"]]},
+ cliente:{n:"🤝 Reunión con clientes",f:[
+  ["Thank you for joining the call today.","th_dh"],
+  ["Could you share your screen, please?","epentesis"],
+  ["We need to understand your business goals first.","z_s"],
+  ["We can schedule a short meeting next week.","sh_ch"],
+  ["Let me summarize what we have agreed.","final_ed"],
+  ["I will send you the slides and the next steps.","final_s"],
+  ["Which of these options fits your team better?","vocal_i"],
+  ["We will deliver a first version in two weeks.","v_b"]]}
+};
+const PREGUNTAS = [
+ ["Tell me about yourself.","Presente → pasado → futuro en 60-90 s: rol actual, logro concreto, por qué este puesto."],
+ ["Why do you want to work as a forward deployed engineer?","Une el trato con cliente (requisitos, ETL a medida) con querer resolver problemas reales con IA."],
+ ["Describe a project you are proud of.","STAR: situación, tarea, acción (tú), resultado con una cifra."],
+ ["Tell me about a time you worked with a difficult client requirement.","Explica cómo convertiste una necesidad vaga en una solución técnica."],
+ ["How would you explain a data pipeline to a non-technical manager?","Usa una analogía sencilla y evita jerga."],
+ ["How do you make sure the data quality is good?","Validaciones, duplicados, nulos, tablas de control, alertas."],
+ ["What is your biggest weakness?","Una debilidad real + lo que haces para mejorarla (p. ej. experiencia con LLMs en producción → proyecto RAG)."],
+ ["Where do you see yourself in five years?","Crecimiento técnico + impacto en clientes; coherente con el puesto."]
+];
+const VOCAB = [["pipeline","PIPE-line"],["data","DAY-ta"],["schema","SKEE-ma"],["SQL","sequel"],["query","QUEER-y"],["cache","cash"],["Azure","AZH-er"],["deploy","de-PLOY"],["analytics","an-a-LIT-ics"],["algorithm","AL-go-rith-m"],["architecture","AR-ki-tek-cher"],["stakeholder","STAKE-hol-der"],["requirements","re-QUIRE-ments"],["scalable","SCALE-a-ble"],["accuracy","AC-cu-ra-cy"],["dataset","DAY-ta-set"],["throughput","THROUGH-put"],["Python","PIE-thon"],["validation","va-li-DAY-shun"],["retrieval","re-TREE-val"]];
+const FILLERS = ["um","uh","erm","er","like","you know","i mean","basically","actually","so","kind of","sort of","eh"];
+
+/* ===================== UTILIDADES ===================== */
+const $ = id => document.getElementById(id);
+/* Cifras → palabras (no al revés): así "three" sigue siendo comparable con "tree" para detectar /θ/ */
+const NUM = {"2":"two","3":"three","4":"four","5":"five","6":"six","10":"ten","70":"seventy","34":"thirty-four","1st":"first"};
+function norm(s){
+  return (s||"").toLowerCase().replace(/[’']/g,"'").replace(/[^a-z0-9' -]/g," ")
+    .split(/\s+/).filter(Boolean).map(w=>NUM[w]||w.replace(/^'+|'+$/g,""));
+}
+const PAIRS = {}; // palabra -> {otra, cat}
+for (const [k,c] of Object.entries(CAT)) for (const p of c.p){ const [a,b]=p.toLowerCase().split("-"); if(a&&b){(PAIRS[a]??={})[b]=k;(PAIRS[b]??={})[a]=k;} }
+function lcsAlign(t,s){ // alineación por LCS → [{t, s, tipo}] tipo: ok | sub | miss
+  const n=t.length,m=s.length,D=Array.from({length:n+1},()=>new Array(m+1).fill(0));
+  for(let i=n-1;i>=0;i--)for(let j=m-1;j>=0;j--)D[i][j]=t[i]===s[j]?D[i+1][j+1]+1:Math.max(D[i+1][j],D[i][j+1]);
+  const out=[];let i=0,j=0;
+  while(i<n){
+    if(j<m&&t[i]===s[j]){out.push({t:t[i],tipo:"ok"});i++;j++;}
+    else if(j<m&&D[i][j+1]>=D[i+1][j]&&D[i+1][j+1]===D[i][j]-0){out.push({t:t[i],s:s[j],tipo:"sub"});i++;j++;}
+    else if(j<m&&D[i][j+1]>D[i+1][j]){j++;}
+    else{out.push({t:t[i],tipo:"miss"});i++;}
+  }
+  return out;
+}
+let voces=[];
+function cargarVoces(){ try{ voces=speechSynthesis.getVoices().filter(v=>/^en-US/i.test(v.lang)); }catch(e){} }
+try{ speechSynthesis.onvoiceschanged=cargarVoces; cargarVoces(); }catch(e){}
+let ttsCap=null;
+async function hablar(texto, rate=1){
+  try{
+    if("speechSynthesis" in window){
+      speechSynthesis.cancel(); const u=new SpeechSynthesisUtterance(texto);
+      u.lang="en-US"; u.rate=rate; if(voces[0]) u.voice=voces[0]; speechSynthesis.speak(u); return;
+    }
+  }catch(e){}
+  
+}
+function esc(s){return String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;"}[c]));}
+
+/* ===================== ALMACÉN DE PROGRESO ===================== */
+let db=null, uid=null, intentos=[];
+function lsGet(){ try{ return JSON.parse(localStorage.getItem("sc_intentos")||"[]"); }catch(e){ return []; } }
+function lsSet(a){ try{ localStorage.setItem("sc_intentos",JSON.stringify(a.slice(-500))); }catch(e){} }
+async function guardar(reg){ intentos.push(reg); lsSet(intentos); pintarProgreso(); }
+async function cargarProgreso(){ intentos=lsGet(); $("pNota").textContent="Tu progreso se guarda en este móvil."; pintarProgreso(); }
+function pintarProgreso(){
+  const a=intentos; $("pN").textContent=a.length;
+  $("pMed").textContent=a.length?Math.round(a.reduce((x,r)=>x+(r.score||0),0)/a.length)+"%":"–";
+  $("pDias").textContent=new Set(a.map(r=>String(r.ts).slice(0,10))).size;
+  const g={}; for(const r of a){ const k=r.cat||r.modo; (g[k]??=[]).push(r.score||0); }
+  const filas=Object.entries(g).sort((x,y)=>(x[1].reduce((s,v)=>s+v,0)/x[1].length)-(y[1].reduce((s,v)=>s+v,0)/y[1].length));
+  $("pTabla").innerHTML=filas.length?filas.map(([k,v])=>{const m=Math.round(v.reduce((s,x)=>s+x,0)/v.length);
+    const nom=CAT[k]?CAT[k].n:(k==="entrevista_libre"?"Respuesta libre (fluidez)":k);
+    return `<tr><td>${esc(nom)}<div class="bar"><i style="width:${m}%"></i></div></td><td>${v.length}</td><td class="n">${m}%</td></tr>`;}).join("")
+    :`<tr><td colspan="3" class="note">Aún no hay intentos. Practica una frase en «Frases» y aparecerá aquí, ordenado de peor a mejor.</td></tr>`;
+}
+
+/* ===================== FRASES ===================== */
+let lista=[], idx=0, actual=null;
+function construirSelector(){
+  const opts=[];
+  for(const [k,t] of Object.entries(TEMAS)) opts.push(`<option value="t:${k}">${esc(t.n)}</option>`);
+  opts.push(`<option value="todo">🔀 Todas las categorías mezcladas</option>`);
+  for(const [k,c] of Object.entries(CAT)) opts.push(`<option value="c:${k}">${esc(c.n)}</option>`);
+  $("selSet").innerHTML=opts.join("");
+}
+function cargarLista(){
+  const v=$("selSet").value;
+  if(v.startsWith("t:")) lista=TEMAS[v.slice(2)].f.map(([txt,cat])=>({txt,cat}));
+  else if(v==="todo") lista=Object.entries(CAT).flatMap(([k,c])=>c.f.map(txt=>({txt,cat:k}))).sort(()=>Math.random()-.5);
+  else { const k=v.slice(2); lista=CAT[k].f.map(txt=>({txt,cat:k})).concat(CAT[k].p.slice(0,4).map(p=>({txt:p.replace("-"," · "),cat:k,par:true}))); }
+  idx=0; mostrar();
+}
+function mostrar(){
+  actual=lista[idx%lista.length]; const c=CAT[actual.cat];
+  $("target").textContent=actual.txt;
+  $("meta").innerHTML=`<span class="chip">${esc(c.n)}</span><span class="chip">${idx%lista.length+1}/${lista.length}</span>`;
+  $("txt").value=""; $("live").textContent=""; $("res").classList.add("hidden");
+}
+function comprobar(){
+  const dicho=$("txt").value.trim(); if(!dicho){ $("live").textContent="Primero di la frase (🎤) o escríbela con el dictado del teclado."; return; }
+  const t=norm(actual.txt.replace(" · "," ")), s=norm(dicho), al=lcsAlign(t,s);
+  const ok=al.filter(x=>x.tipo==="ok").length, pct=Math.round(100*ok/Math.max(1,t.length));
+  $("pct").textContent=pct+"%";
+  $("pctTxt").textContent=pct>=90?"¡Muy bien! Se te ha entendido todo.":pct>=70?"Casi: revisa las palabras en rojo.":"Repite despacio, primero escuchando el modelo.";
+  $("words").innerHTML=al.map(x=>x.tipo==="ok"?`<span class="w ok">${esc(x.t)}</span>`:x.tipo==="sub"?`<span class="w bad" title="se entendió: ${esc(x.s)}">${esc(x.t)} → ${esc(x.s)}</span>`:`<span class="w miss">${esc(x.t)}</span>`).join("");
+  const tips=new Set();
+  for(const x of al){
+    if(x.tipo==="sub"&&PAIRS[x.t]&&PAIRS[x.t][x.s]){ const k=PAIRS[x.t][x.s]; tips.add(`<div class="tip">Dijiste <b>${esc(x.s)}</b> en vez de <b>${esc(x.t)}</b> · ${esc(CAT[k].n)}<br>${esc(CAT[k].c)}</div>`); }
+  }
+  if(pct<90) tips.add(`<div class="tip"><b>Foco de esta frase:</b> ${esc(CAT[actual.cat].n)}<br>${esc(CAT[actual.cat].c)}</div>`);
+  $("tips").innerHTML=[...tips].join("")+`<p class="note">El reconocedor "corrige" hacia palabras reales: si una palabra sale bien pero dudas, escucha el modelo en 🐢 Lento y repite.</p>`;
+  $("res").classList.remove("hidden");
+  guardar({ts:new Date().toISOString(),modo:"frase",cat:actual.cat,ref:actual.txt,score:pct});
+}
+
+/* ===================== ENTREVISTA ===================== */
+let t0=null, t1=null;
+function construirPreguntas(){
+  $("selQ").innerHTML=PREGUNTAS.map((p,i)=>`<option value="${i}">${esc(p[0])}</option>`).join("");
+  $("vocab").innerHTML=VOCAB.map(([w,h])=>`<button type="button" data-w="${esc(w)}">${esc(w)}<i>${esc(h)}</i></button>`).join("");
+}
+function mostrarPregunta(){ const p=PREGUNTAS[+$("selQ").value]; $("qText").textContent=p[0]; $("qHint").textContent="💡 "+p[1]; $("txt2").value=""; $("res2").classList.add("hidden"); t0=t1=null; }
+function analizar(){
+  const txt=$("txt2").value.trim(); if(!txt){ $("live2").textContent="Responde primero (🎤) o pega tu respuesta."; return; }
+  const low=" "+txt.toLowerCase().replace(/[^a-z' ]/g," ").replace(/\s+/g," ")+" ";
+  const palabras=norm(txt); const n=palabras.length;
+  let fill=0; const fdet={};
+  const LIKE_OK=/(i'd|i|we|you|they|he|she|would|don't|didn't|looks?|feels?|sounds?|seems?|something|things?)\s+like\s+$/;
+  const plano=" "+txt.toLowerCase().replace(/[^a-z'.,;?! ]/g," ").replace(/\s+/g," ")+" ";
+  for(const f of FILLERS){
+    // límites de palabra con lookaround: "um um" cuenta 2
+    const re=new RegExp("(?<![a-z'])"+f.replace(/ /g,"\\s+")+"(?![a-z'])","g"); let m, c=0;
+    while((m=re.exec(plano))){
+      const antes=plano.slice(0,m.index), despues=plano.slice(m.index+m[0].length);
+      if(f==="like" && LIKE_OK.test(antes+"like ")) continue;                       // "I'd like to", "looks like" no son muletilla
+      if(f==="so" && !(/(^\s*|[.,;?!]\s*)$/.test(antes)) ) continue;               // "so" solo cuenta al empezar frase
+      if(f==="so" && /^\s*(that|far|much|many)\b/.test(despues)) continue;          // "so that", "so far"
+      c++;
+    }
+    if(c){ fill+=c; fdet[f]=c; }
+  }
+  const seg=(t0&&t1)?(t1-t0)/1000:null; const wpm=seg&&seg>5?Math.round(n/(seg/60)):null;
+  $("kWpm").textContent=wpm??"–"; $("kFill").textContent=fill; $("kWords").textContent=n;
+  const rep={}; for(const w of palabras) if(w.length>3) rep[w]=(rep[w]||0)+1;
+  const top=Object.entries(rep).filter(([,c])=>c>=3).sort((a,b)=>b[1]-a[1]).slice(0,4);
+  const tips=[];
+  if(wpm!==null) tips.push(wpm<110?"🐢 Vas algo lento: intenta enlazar palabras y reducir pausas.":wpm>170?"🐇 Vas rápido: baja el ritmo y marca las palabras clave.":"✅ Buen ritmo.");
+  else tips.push("⏱️ El ritmo se mide cuando respondes con 🎤 (no con texto pegado).");
+  tips.push(fill===0?"✅ Sin muletillas.":`🗣️ Muletillas: ${Object.entries(fdet).map(([f,c])=>`«${f}» ×${c}`).join(", ")}. Sustitúyelas por una pausa breve.`);
+  if(top.length) tips.push(`🔁 Repites mucho: ${top.map(([w,c])=>`«${w}» ×${c}`).join(", ")}. Busca sinónimos.`);
+  if(n<60) tips.push("📏 Respuesta corta: en entrevista apunta a 60-90 s (unas 120-200 palabras).");
+  if(!/\d/.test(txt)&&!/(percent|hours|days|weeks|times)/i.test(txt)) tips.push("📈 Añade una cifra concreta (%, tiempo ahorrado, nº de tablas…): da credibilidad.");
+  const usadas=VOCAB.filter(([w])=>low.includes(" "+w.toLowerCase()+" ")).map(([w])=>w);
+  if(usadas.length) tips.push(`🎯 Palabras técnicas que has usado (repásalas abajo): ${usadas.join(", ")}.`);
+  $("tips2").innerHTML=tips.map(t=>`<div class="tip">${esc(t)}</div>`).join("");
+  $("res2").classList.remove("hidden");
+  const sc=Math.max(0,Math.min(100,100-fill*8-(wpm&&(wpm<110||wpm>170)?15:0)-(n<60?15:0)));
+  guardar({ts:new Date().toISOString(),modo:"entrevista_libre",cat:"entrevista_libre",ref:PREGUNTAS[+$("selQ").value][0],score:sc,wpm,fill,palabras:n});
+}
+
+/* ===================== DICTADO ===================== */
+let rec=null, destino=null, escuchando=false;
+const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+function setRec(btn,on){ btn.classList.toggle("on",on); btn.textContent=on?"⏹ Parar":(btn.id==="bHablar"?"🎤 Hablar":"🎤 Responder (habla 30-90 s)"); }
+function pulsarMic(btn,area,live){
+  if(!SR){ live.textContent="Este navegador no tiene reconocimiento de voz: usa Chrome (Android) o Safari (iPhone), o el micrófono del teclado."; area.focus(); return; }
+  if(escuchando&&rec){ try{ rec.stop(); }catch(e){} return; }
+  if(rec){ try{ rec.onend=null; rec.onresult=null; rec.onerror=null; rec.abort(); }catch(e){} rec=null; }   // cierra cualquier reconocimiento colgado
+  destino={btn,area,live}; area.value=""; if(btn.id==="bResp"){t0=Date.now();t1=null;}
+  const resBox = btn.id==="bHablar" ? $("res") : $("res2"); resBox.classList.add("hidden");   // borra el resultado anterior
+  window._intentos=(window._intentos||0)+1; const nIntento=window._intentos;
+  const r=new SR(); rec=r; r.lang="en-US"; r.interimResults=true; r.continuous=(btn.id==="bResp"); r.maxAlternatives=1;
+  let finalTxt="", ultimo="", vigia=null;
+  const terminar=()=>{ try{ r.stop(); }catch(e){} };
+  r.onstart=()=>{ escuchando=true; setRec(btn,true); live.textContent="🎙️ Intento n.º "+nIntento+" · escuchando…"; };
+  r.onresult=e=>{ let parcial=""; for(let i=e.resultIndex;i<e.results.length;i++){ const x=e.results[i]; if(x.isFinal) finalTxt+=(finalTxt?" ":"")+x[0].transcript.trim(); else parcial+=x[0].transcript; }
+    ultimo=(finalTxt+" "+parcial).trim(); area.value=ultimo; live.textContent="🎙️ Intento n.º "+nIntento+" · "+(parcial||"…");
+    if(btn.id==="bHablar"){ clearTimeout(vigia); vigia=setTimeout(terminar,1800); } };   // en frases: corta solo tras 1,8 s de silencio
+  r.onerror=e=>{ live.textContent = e.error==="not-allowed"||e.error==="service-not-allowed" ? "Micrófono bloqueado: permítelo en los ajustes del navegador para esta web." : e.error==="no-speech" ? "No te he oído. Pulsa 🎤 y habla cerca del móvil." : e.error==="aborted" ? "" : "Error del micrófono: "+e.error; };
+  r.onend=()=>{ clearTimeout(vigia); if(rec!==r) return; escuchando=false; setRec(btn,false); if(btn.id==="bResp") t1=Date.now();
+    area.value=(finalTxt||ultimo).trim();
+    if(area.value){ live.textContent="✅ Intento n.º "+nIntento+" corregido"; (btn.id==="bHablar"?comprobar:analizar)(); }
+    else if(!live.textContent.startsWith("Micr")) live.textContent="No te he entendido. Pulsa 🎤 y repite."; };
+  try{ r.start(); }catch(err){ escuchando=false; setRec(btn,false); live.textContent="No se pudo iniciar el micrófono. Recarga la página y prueba otra vez."; }
+}
+function iniciarCapacidades(){
+  $("estadoMic").textContent = SR ? "🎤 Micrófono del navegador · sin Claude" : "Sin reconocimiento de voz · usa el teclado";
+  cargarProgreso();
+}
+
+/* ===================== EVENTOS ===================== */
+document.querySelectorAll(".tabs button").forEach(b=>b.addEventListener("click",()=>{
+  document.querySelectorAll(".tabs button").forEach(x=>x.setAttribute("aria-selected",x===b?"true":"false"));
+  for(const v of ["frases","entrevista","progreso"]) $("v-"+v).classList.toggle("hidden",v!==b.dataset.v);
+  if(b.dataset.v==="progreso") pintarProgreso();
+}));
+$("selSet").addEventListener("change",cargarLista);
+$("bSig").addEventListener("click",()=>{idx++;mostrar();});
+$("bEsc").addEventListener("click",()=>hablar(actual.txt.replace(" · ",". "),1));
+$("bLento").addEventListener("click",()=>hablar(actual.txt.replace(" · ",". "),.65));
+$("bComp").addEventListener("click",comprobar);
+$("bHablar").addEventListener("click",e=>pulsarMic(e.currentTarget,$("txt"),$("live")));
+$("selQ").addEventListener("change",mostrarPregunta);
+$("bQEsc").addEventListener("click",()=>hablar(PREGUNTAS[+$("selQ").value][0],.95));
+$("bResp").addEventListener("click",e=>pulsarMic(e.currentTarget,$("txt2"),$("live2")));
+$("bAnal").addEventListener("click",analizar);
+$("vocab").addEventListener("click",e=>{const b=e.target.closest("button[data-w]"); if(b) hablar(b.dataset.w,.8);});
+
+construirSelector(); cargarLista(); construirPreguntas(); mostrarPregunta(); intentos=lsGet(); pintarProgreso();
+iniciarCapacidades();
+</script>
+</body></html>
