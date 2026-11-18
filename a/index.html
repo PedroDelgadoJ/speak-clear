@@ -1,0 +1,1084 @@
+<!doctype html><html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="mobile-web-app-capable" content="yes"><meta name="theme-color" content="#1f6feb"><style>:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0}</style><title>Speak Clear</title></head><body>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Sora:wght@500;700&family=Inter:wght@400;500;600&family=Noto+Sans:wght@400;500&display=swap">
+<style>
+/* Layout: una tarjeta de práctica a pantalla de móvil, pestañas abajo de la cabecera; frase grande, controles grandes al pulgar */
+:root{
+  --bg:#f3f5f8; --surface:#ffffff; --ink:#14202e; --muted:#5b6878; --line:#d9e0e8;
+  --accent:#1f6feb; --accent-ink:#ffffff; --signal:#e8590c;
+  --ok:#1a7f4b; --ok-bg:#e3f4ea; --bad:#c2321f; --bad-bg:#fbe7e4; --warn-bg:#fff2dc; --hl:#e6efff;
+  --f-display:"Sora",system-ui,sans-serif; --f-body:"Inter",system-ui,sans-serif; --f-ipa:"Noto Sans","Segoe UI",sans-serif;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#0e141b; --surface:#16202b; --ink:#e6edf5; --muted:#93a1b2; --line:#26323f;
+  --accent:#5b9cff; --accent-ink:#0b1320; --signal:#ff8a47;
+  --ok:#5fd393; --ok-bg:#12301f; --bad:#ff7b6b; --bad-bg:#3a1714; --warn-bg:#3a2a10; --hl:#1b2f4d; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0e141b; --surface:#16202b; --ink:#e6edf5; --muted:#93a1b2; --line:#26323f;
+  --accent:#5b9cff; --accent-ink:#0b1320; --signal:#ff8a47;
+  --ok:#5fd393; --ok-bg:#12301f; --bad:#ff7b6b; --bad-bg:#3a1714; --warn-bg:#3a2a10; --hl:#1b2f4d; color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font:15px/1.5 var(--f-body);padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+.wrap{max-width:560px;margin:0 auto;padding-block:14px 40px;display:flex;flex-direction:column;gap:14px}
+header{display:flex;align-items:baseline;justify-content:space-between;gap:8px;flex-wrap:wrap}
+h1{font:700 22px/1.1 var(--f-display);margin:0;letter-spacing:-.01em}
+h1 span{color:var(--signal)}
+.sub{color:var(--muted);font-size:13px}
+.tabs{display:grid;grid-template-columns:repeat(3,1fr);gap:4px;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:4px}
+.tabs button{border:0;background:transparent;color:var(--muted);font:600 14px var(--f-body);padding:10px 4px;border-radius:9px;cursor:pointer}
+.tabs button[aria-selected="true"]{background:var(--accent);color:var(--accent-ink)}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:16px;display:flex;flex-direction:column;gap:12px;min-width:0}
+label.lbl,.lbl{font-size:12px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);font-weight:600}
+select,textarea{width:100%;font:15px var(--f-body);color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:10px}
+textarea{min-height:64px;resize:vertical}
+.target{font:600 clamp(20px,5.6vw,26px)/1.3 var(--f-display);text-wrap:balance;margin:0}
+.meta{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+.chip{font-size:12px;padding:3px 9px;border-radius:999px;background:var(--bg);border:1px solid var(--line);color:var(--muted);font-family:var(--f-ipa)}
+.row{display:flex;gap:8px;flex-wrap:wrap}
+.btn{flex:1 1 auto;min-height:48px;border-radius:12px;border:1px solid var(--line);background:var(--bg);color:var(--ink);font:600 15px var(--f-body);cursor:pointer;padding:0 14px}
+.btn.sm{min-height:40px;font-size:14px;flex:0 1 auto}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.btn.rec{background:var(--signal);border-color:var(--signal);color:#fff}
+.btn:focus-visible,.tabs button:focus-visible,select:focus-visible,textarea:focus-visible,button.w:focus-visible,summary:focus-visible,.sent button:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+.btn[disabled]{opacity:.5}
+.live{min-height:24px;color:var(--muted);font-style:italic}
+.words{display:flex;flex-wrap:wrap;gap:6px}
+.w{padding:3px 8px;border-radius:7px;font-weight:600}
+button.w{border:0;font:600 15px var(--f-body);cursor:pointer;min-height:32px}
+button.w::after{content:" 🔊";font-size:11px}
+.w.ok{background:var(--ok-bg);color:var(--ok)}
+.w.bad{background:var(--bad-bg);color:var(--bad)}
+.w.miss{background:var(--bad-bg);color:var(--bad);text-decoration:line-through}
+.score{display:flex;align-items:baseline;gap:8px}
+.score b{font:700 34px var(--f-display);font-variant-numeric:tabular-nums}
+.tip{background:var(--warn-bg);border-radius:10px;padding:10px 12px;font-size:14px}
+.tip b{font-family:var(--f-ipa)}
+.wpanel{background:var(--hl);border-radius:12px;padding:12px;display:flex;flex-direction:column;gap:8px}
+.wpanel .big{font:700 22px var(--f-display)}
+.note{font-size:13px;color:var(--muted)}
+.kpis{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.kpi{background:var(--bg);border-radius:10px;padding:10px;text-align:center}
+.kpi b{display:block;font:700 22px var(--f-display);font-variant-numeric:tabular-nums}
+.kpi span{font-size:12px;color:var(--muted)}
+.kpi.main{background:var(--hl)}
+.vocab{display:flex;flex-wrap:wrap;gap:6px}
+.vocab button{border:1px solid var(--line);background:var(--bg);color:var(--ink);border-radius:999px;padding:6px 11px;font:500 14px var(--f-body);cursor:pointer}
+.vocab button i{font-style:normal;color:var(--muted);font-family:var(--f-ipa);font-size:12px;margin-left:4px}
+table{width:100%;border-collapse:collapse;font-size:14px}
+td,th{padding:7px 4px;border-bottom:1px solid var(--line);text-align:left}
+th{color:var(--muted);font-weight:600;font-size:12px}
+td.n{text-align:right;font-variant-numeric:tabular-nums}
+.bar{height:6px;border-radius:3px;background:var(--line);overflow:hidden}
+.bar i{display:block;height:100%;background:var(--accent)}
+.hidden{display:none}
+.btn.destacar{outline:3px solid var(--accent);outline-offset:2px}
+.diaglog{font-size:11px;max-height:220px;overflow:auto;white-space:pre-wrap;background:var(--hl);padding:8px;border-radius:8px;margin:0}
+details.guion{border:1px solid var(--line);border-radius:12px;background:var(--bg)}
+details.guion>summary{cursor:pointer;padding:12px;font-weight:600;list-style:none;min-height:44px}
+details.guion>summary::-webkit-details-marker{display:none}
+details.guion[open]>summary{border-bottom:1px solid var(--line)}
+.gbody{padding:12px;display:flex;flex-direction:column;gap:12px}
+.gbody ol,.gbody ul{margin:0;padding-left:20px;display:flex;flex-direction:column;gap:6px}
+.kw{display:inline-block;font-size:11px;padding:1px 7px;margin:2px 3px 0 0;border-radius:999px;border:1px solid var(--line);color:var(--muted)}
+ul.sent{list-style:none;padding:0}
+.sent li{display:flex;gap:8px;align-items:flex-start;padding:6px;border-radius:8px}
+.sent li.playing{background:var(--hl)}
+.sent button{flex:0 0 auto;border:1px solid var(--line);background:var(--surface);color:var(--ink);border-radius:8px;min-width:40px;min-height:36px;cursor:pointer}
+ul.cov{list-style:none;padding:0;margin:0;display:flex;flex-direction:column;gap:6px}
+.cov li{padding:8px 10px;border-radius:10px;background:var(--bg)}
+.cov li.si{background:var(--ok-bg)}
+.cov small{display:block;color:var(--muted)}
+@media (prefers-reduced-motion:no-preference){.btn.rec.on{animation:pulse 1.2s infinite}@keyframes pulse{50%{opacity:.75}}}
+</style>
+
+<div class="wrap">
+  <header>
+    <h1>Speak<span>·</span>Clear</h1>
+    <span class="sub" id="estadoMic">Inglés americano</span>
+  </header>
+
+  <nav class="tabs" role="tablist">
+    <button role="tab" id="t-frases" aria-selected="true" data-v="frases">Frases</button>
+    <button role="tab" id="t-entrevista" aria-selected="false" data-v="entrevista">Entrevista</button>
+    <button role="tab" id="t-progreso" aria-selected="false" data-v="progreso">Progreso</button>
+  </nav>
+
+  <!-- ============ FRASES ============ -->
+  <section id="v-frases" class="card">
+    <div>
+      <label class="lbl" for="selSet">Practicar</label>
+      <select id="selSet"></select>
+    </div>
+    <button class="btn sm" id="bRepaso" type="button">🔁 Repasar mis fallos</button>
+    <p class="target" id="target">…</p>
+    <div class="meta" id="meta"></div>
+    <div class="row">
+      <button class="btn" id="bEsc">🔊 Escuchar</button>
+      <button class="btn" id="bLento">🐢 Lento</button>
+      <button class="btn" id="bSig">Siguiente →</button>
+    </div>
+    <p class="note">🔇 ¿No oyes nada? Quita el modo silencio y sube el volumen.</p>
+    <button class="btn rec" id="bHablar">🎤 Hablar</button>
+    <div class="live" id="live"></div><button class="btn sm hidden reintentar" type="button" id="bReint">🔁 Toca para reintentar</button>
+    <div class="row"><button class="btn sm reMic" type="button" id="bReMic">🔄 Reiniciar micrófono</button><button class="btn sm diagBtn" type="button" id="bDiag" title="Diagnóstico del micrófono" aria-label="Diagnóstico del micrófono">🩺</button><span class="note micEst" id="micEst" aria-live="polite">⏹ Micrófono: parado</span></div>
+    <div id="diagBox" class="hidden"><p class="note">🩺 Diagnóstico del micrófono: haz una captura y pásasela a Claude.</p><pre id="diagLog" class="diaglog"></pre></div>
+    <div>
+      <label class="lbl" for="txt">Lo que has dicho</label>
+      <textarea id="txt" placeholder="Pulsa 🎤 Hablar, o usa el micrófono de tu teclado y luego «Comprobar»"></textarea>
+    </div>
+    <button class="btn primary" id="bComp">Comprobar</button>
+    <div id="res" class="hidden" aria-live="polite">
+      <div class="score"><b id="pct">0%</b><span class="note" id="pctTxt"></span></div>
+      <div class="words" id="words"></div>
+      <p class="note" id="wAyuda">Toca una palabra en rojo para oírla bien (normal y lenta). Si no oyes nada, quita el modo silencio y sube el volumen.</p>
+      <div id="wPanel" class="wpanel hidden" aria-live="polite"></div>
+      <div id="tips"></div>
+    </div>
+  </section>
+
+  <!-- ============ ENTREVISTA ============ -->
+  <section id="v-entrevista" class="card hidden">
+    <div>
+      <label class="lbl" for="selFam">Puesto</label>
+      <select id="selFam">
+        <option value="fde">🚀 Forward Deployed Engineer</option>
+        <option value="ds">🧠 Data Scientist / IA</option>
+        <option value="de">🛠️ Data Engineer</option>
+      </select>
+    </div>
+    <div>
+      <label class="lbl" for="selQ">Pregunta de entrevista</label>
+      <select id="selQ"></select>
+    </div>
+    <p class="target" id="qText">…</p>
+    <div class="meta" id="qMeta"></div>
+    <p class="note" id="qHint"></p>
+    <div class="row">
+      <button class="btn" id="bQEsc">🔊 Oír la pregunta</button>
+    </div>
+    <details class="guion" id="guion">
+      <summary>📋 Guion · estructura, puntos clave y respuesta modelo</summary>
+      <div class="gbody" id="gBody"></div>
+    </details>
+    <button class="btn rec" id="bResp">🎤 Responder (habla 30-90 s)</button>
+    <div class="live" id="live2"></div><button class="btn sm hidden reintentar" type="button" id="bReint2">🔁 Toca para reintentar</button>
+    <div class="row"><button class="btn sm reMic" type="button" id="bReMic2">🔄 Reiniciar micrófono</button><button class="btn sm diagBtn" type="button" id="bDiag2" title="Diagnóstico del micrófono" aria-label="Diagnóstico del micrófono">🩺</button><span class="note micEst" id="micEst2" aria-live="polite">⏹ Micrófono: parado</span></div>
+    <div>
+      <label class="lbl" for="txt2">Tu respuesta</label>
+      <textarea id="txt2" placeholder="Tu respuesta aparece aquí (o díctala con el teclado)"></textarea>
+    </div>
+    <button class="btn primary" id="bAnal">Analizar respuesta</button>
+    <div id="res2" class="hidden" aria-live="polite">
+      <div class="kpis">
+        <div class="kpi main"><b id="kNota">–</b><span>nota final<br>(60 % puntos + 40 % fluidez)</span></div>
+        <div class="kpi"><b id="kCov">–</b><span>puntos clave cubiertos</span></div>
+        <div class="kpi"><b id="kFlu">–</b><span>fluidez</span></div>
+      </div>
+      <div class="kpis" style="margin-top:8px">
+        <div class="kpi"><b id="kWpm">–</b><span>palabras/min<br>(ideal 120-160)</span></div>
+        <div class="kpi"><b id="kFill">–</b><span>muletillas</span></div>
+        <div class="kpi"><b id="kWords">–</b><span>palabras</span></div>
+      </div>
+      <p class="lbl" style="margin:12px 0 6px">Cobertura de puntos clave</p>
+      <ul class="cov" id="covList"></ul>
+      <div id="tips2" style="margin-top:8px"></div>
+    </div>
+    <div>
+      <label class="lbl">Vocabulario técnico difícil · toca para oírlo</label>
+      <div class="vocab" id="vocab"></div>
+    </div>
+  </section>
+
+  <!-- ============ PROGRESO ============ -->
+  <section id="v-progreso" class="card hidden">
+    <div class="kpis">
+      <div class="kpi"><b id="pN">0</b><span>intentos</span></div>
+      <div class="kpi"><b id="pMed">–</b><span>media</span></div>
+      <div class="kpi"><b id="pDias">0</b><span>días practicados</span></div>
+    </div>
+    <table>
+      <thead><tr><th>Categoría</th><th>Intentos</th><th class="n">Media</th></tr></thead>
+      <tbody id="pTabla"></tbody>
+    </table>
+    <div>
+      <p class="lbl" style="margin:0 0 6px">Palabras que más fallas</p>
+      <div class="vocab" id="pFallos"></div>
+    </div>
+    <button class="btn" id="bRepaso2" type="button">🔁 Repasar mis fallos</button>
+    <p class="note" id="pNota">Tu progreso se guarda en tu cuenta (privado).</p>
+  </section>
+</div>
+
+<script>
+/* ===================== DATOS ===================== */
+const CAT = {
+ vocal_i:{n:"/ɪ/ vs /iː/ (ship-sheep)",c:"/iː/ larga y tensa (sonrisa); /ɪ/ corta y relajada, casi entre i y e. No uses la 'i' española para las dos.",p:["ship-sheep","live-leave","fill-feel","bit-beat","sit-seat","hit-heat"],f:["I live in a big city.","Please sit on this seat."]},
+ vocales_otras:{n:"/æ/ /ʌ/, /ʊ/ /uː/ (cat-cut, full-fool)",c:"/æ/ (cat) boca muy abierta, entre a y e; /ʌ/ (cut) a corta y central; /ʊ/ (full) corta, /uː/ (fool) larga.",p:["cat-cut","hat-hut","bad-bud","full-fool","pull-pool","look-luke"],f:["The black cat ran across the road.","Pull the full cup from the pool."]},
+ schwa:{n:"Vocal reducida /ə/ (banana, doctor)",c:"Las sílabas átonas se reducen a /ə/ (una 'e' neutra y floja): baNAna = bə-NA-nə, DOCtor = DOC-tə.",p:[],f:["I want to go to the doctor today.","A cup of coffee and a banana, please."]},
+ v_b:{n:"/v/ vs /b/ (very-berry)",c:"/v/ = dientes de arriba sobre el labio inferior, con vibración. /b/ = los dos labios. En español ambas suenan /b/.",p:["very-berry","vest-best","van-ban","vote-boat","curve-curb","vowel-bowel"],f:["I have a very valuable vest.","We vote by boat in November."]},
+ th_dh:{n:"/θ/ /ð/ (think, this)",c:"/θ/ (think) = la 'z' de España, lengua entre los dientes, sin voz. /ð/ (this) = igual pero con voz, como la 'd' de 'nada'.",p:["think-sink","three-tree","thin-tin","they-day","then-den","breathe-breeze","thank-tank"],f:["I think three things are there.","They thank their mother."]},
+ z_s:{n:"/z/ sonora (prize-price)",c:"/z/ es una 's' con voz (zumbido de abeja). Muchas 's' escritas suenan /z/: is, was, eyes, rose.",p:["prize-price","zoo-sue","eyes-ice","rise-rice","lose-loose","peas-peace"],f:["She won a prize for her eyes.","The zoo is closed because of the rain."]},
+ sh_ch:{n:"/ʃ/ vs /tʃ/ (ship-chip)",c:"/ʃ/ (ship) = 'shh' de silencio, continuo. /tʃ/ (chip) = la 'ch' española, con golpe inicial.",p:["ship-chip","share-chair","wash-watch","sheep-cheap","shoes-choose","cash-catch"],f:["Wash the dishes in the shop.","She shares a cheap chair."]},
+ epentesis:{n:"e- antes de s+consonante (espeak)",c:"No añadas 'e' antes de s+consonante: speak, Spain, school, student empiezan directamente con 'ssss'.",p:["speak-espeak","school-eschool","student-estudent","star-estar","stay-estay"],f:["I speak Spanish at school.","The students start at six."]},
+ final_ed:{n:"Final -ed (worked, wanted)",c:"-ed suena /t/ tras sordas (worked = workt), /d/ tras sonoras (played), /ɪd/ solo tras t/d (wanted). No lo omitas.",p:["work-worked","play-played","want-wanted","walk-walked","need-needed","build-built","deploy-deployed"],f:["I worked and played yesterday.","She walked home and needed a rest."]},
+ final_s:{n:"Final -s (likes, books)",c:"Pronuncia la -s final (likes /s/, dogs /z/, watches /ɪz/). Si la pierdes cambias persona y número.",p:["like-likes","book-books","cat-cats","watch-watches","dog-dogs","work-works","model-models"],f:["She likes books and cats.","He works for two companies."]},
+ acento:{n:"Acento de palabra (PHOtograph / phoTOgraphy)",c:"El acento cambia de sitio: PHOtograph, phoTOgraphy. Exagera la sílaba tónica y reduce las demás.",p:[],f:["Take a photograph for the photography class.","We need to develop a new development plan."]},
+ linking:{n:"Ritmo y enlace (turn it off → tur-ni-toff)",c:"El inglés enlaza consonante final + vocal inicial: 'turn it off' = 'tur-ni-toff'. Sin pausas entre palabras.",p:[],f:["Turn it off and on again.","Pick it up and put it away."]}
+};
+/* Frases profesionales adaptadas al perfil real de Pedro (NTT Data, ETL, Airflow, Máster IA) */
+const TEMAS = {
+ entrevista:{n:"💼 Entrevista (tu perfil)",f:[
+  ["I'm a junior engineer working in data engineering at NTT Data.","th_dh"],
+  ["I studied mathematics and then a master's degree in artificial intelligence.","schwa"],
+  ["I built and maintained ETL pipelines with Airflow and Oracle.","final_ed"],
+  ["I worked closely with the client to understand their requirements.","final_ed"],
+  ["I think the main challenge was the quality of the data.","th_dh"],
+  ["I enjoy solving business problems with data and machine learning.","z_s"],
+  ["I'm very interested in this role because I want to work with customers.","v_b"],
+  ["My strength is that I can explain technical results simply.","epentesis"],
+  ["I'm currently building a retrieval system with a local language model.","vocal_i"],
+  ["I'd like to grow into a forward deployed engineer role.","final_ed"]]},
+ proyecto:{n:"📊 Presentar un proyecto",f:[
+  ["This project predicts daily demand for seventy products.","th_dh"],
+  ["We built a pipeline that cleans and validates the data.","final_s"],
+  ["The model reduced the error by thirty-four percent.","final_ed"],
+  ["The results show a big improvement over the baseline.","vocal_i"],
+  ["Let me walk you through the architecture.","linking"],
+  ["The next step is to evaluate it in production.","schwa"],
+  ["These three metrics measure the business value.","th_dh"]]},
+ cliente:{n:"🤝 Reunión con clientes",f:[
+  ["Thank you for joining the call today.","th_dh"],
+  ["Could you share your screen, please?","epentesis"],
+  ["We need to understand your business goals first.","z_s"],
+  ["We can schedule a short meeting next week.","sh_ch"],
+  ["Let me summarize what we have agreed.","final_ed"],
+  ["I will send you the slides and the next steps.","final_s"],
+  ["Which of these options fits your team better?","vocal_i"],
+  ["We will deliver a first version in two weeks.","v_b"]]}
+};
+/* Estructuras de respuesta */
+const ESTR = {
+ star:{n:"STAR",d:["S · Situación: el contexto en 1 frase","T · Tarea: tu responsabilidad concreta","A · Acción: lo que hiciste TÚ (2-3 pasos)","R · Resultado: una cifra + lo que aprendiste"]},
+ ppf:{n:"Presente → pasado → futuro",d:["Presente: quién eres y qué haces hoy","Pasado: formación y logros que te han traído aquí","Futuro: qué buscas y por qué este puesto"]},
+ psi:{n:"Problema → solución → impacto",d:["Problema: qué está en juego","Solución: cómo lo abordas, con un ejemplo real tuyo","Impacto: resultado o cifra, y siguiente paso"]},
+ cdt:{n:"Clarificar → diseñar → trade-offs",d:["Clarificar (1-2 frases): usuarios, volumen, formato, plazos y qué significa «éxito»","Diseñar: los componentes de extremo a extremo, en orden","Trade-offs: alternativas y por qué eliges una","Validar y monitorizar: cómo sabrás que funciona"]},
+ preg:{n:"Tus preguntas al entrevistador",d:["Agradece y di que tienes 3-4 preguntas","Qué es el éxito en el puesto","Retos actuales del equipo","Equipo y aprendizaje"]}
+};
+const FAM = {fde:"FDE",ds:"Data Scientist / IA",de:"Data Engineer",comun:"Comunes"};
+/* Preguntas de entrevista. SOLO hechos reales de Pedro (cv_hechos.toml + README de sus proyectos personales).
+   p = [punto clave (es), "palabras|clave|sinónimos" para la autocorrección]; m = respuesta modelo frase a frase. */
+const ENT = [
+/* ---------- FDE ---------- */
+{f:"fde",e:"ppf",q:"Tell me about yourself.",h:"60-90 s: rol actual → formación → proyectos de IA → por qué FDE. Termina conectando con el puesto.",
+ p:[["Rol actual: Junior Engineer en NTT Data","ntt|junior engineer|data engineer|currently"],["Qué haces: ETL con Airflow / ODI / Stratio","etl|pipeline|airflow|oracle|odi|stratio"],["Trato con el cliente y requisitos","client|customer|requirement"],["Formación: Matemáticas + Máster en IA","mathematic|maths|master|artificial intelligence|degree"],["Proyecto personal de IA con cifra","retrieval|rag|personal project|language model|eighty|80"],["Por qué FDE","forward deployed|fde|this role|both sides"]],
+ m:["I'm a junior engineer at NTT Data in Seville, where I've worked since March 2025.","I build and maintain ETL pipelines with Apache Airflow, Oracle Data Integrator and Stratio, and I write Python scripts to automate operational work.","A big part of my job is talking to the client: I gather their requirements and turn them into a technical ETL design.","Before that, I studied a degree in mathematics and a master's in logic, computation and artificial intelligence at the University of Seville.","In my own time, I've built personal AI projects, for example a retrieval assistant with a local language model that went from eighteen to eighty percent correct answers.","Now I want to combine both sides: solving real client problems and deploying AI that works.","That's why this forward deployed engineer role fits me so well."]},
+{f:"fde",e:"ppf",q:"Why do you want to work as a forward deployed engineer?",h:"Une lo que ya haces (cliente + ETL a medida) con lo que quieres (IA aplicada en producción).",
+ p:[["Te gusta el trabajo con el cliente","client|customer|meeting"],["Ejemplo real: requisitos → ETL","requirement|reporting table|ftp|etl|design"],["IA aplicada (proyectos personales)","ai|artificial intelligence|retrieval|agent|language model|machine learning"],["Construir de extremo a extremo","end to end|both things|close to the customer|build"],["Impacto visible","impact|visible|using what|value"]],
+ m:["What I enjoy most in my current job is the moment when a client's need becomes a working solution.","At NTT Data, I meet the client to understand what they need, like a final reporting table or how their files arrive by FTP, and then I design the ETL to deliver it.","At the same time, I've been learning applied AI through personal projects, such as a support assistant with retrieval and a safe agent with tools.","A forward deployed engineer does exactly both things: sits close to the customer and builds the technical solution end to end.","I like that the impact is visible and fast, because you see the customer using what you built.","And your platform would let me bring AI to real business problems, which is where I want to grow."]},
+{f:"fde",e:"star",q:"Tell me about a time you turned a client requirement into a technical solution.",h:"STAR con tu trabajo real en NTT Data: tablón final, ficheros FTP, cruces en ODI/Stratio, validación con el cliente y tablas de control.",
+ p:[["S: el cliente necesitaba un tablón final","client|customer|reporting table|final table"],["T: entender los requisitos","requirement|understand|gather|clarify"],["A: reuniones y preguntas concretas","meeting|question|files|ftp"],["A: diseño de cruces y transformaciones","join|transformation|design|odi|oracle data integrator|stratio"],["R: validación con cliente + tablas de control","validat|control table|check|trust"]],
+ m:["In my current project at NTT Data, the client needed a final reporting table built from several sources and files.","My task was to understand exactly what they needed and turn it into an ETL design.","I joined meetings with them to clarify which files they would send, where they would be located, and how they should be moved over FTP.","Then I designed the joins and transformations in Oracle Data Integrator and Stratio.","Before delivering, I validated the results together with the client, and I added control tables so every load is checked automatically.","As a result, the client gets a table they can trust, and data problems show up right after each run.","I learned that asking precise questions at the start saves a lot of rework."]},
+{f:"fde",e:"star",q:"Tell me about a project you are proud of.",h:"STAR con tu proyecto personal RAG (dilo claro: «personal project»). Cifra: 18 % → 80 % de respuestas correctas.",
+ p:[["S: asistente de soporte (proyecto personal)","personal project|support|assistant"],["T: responder con fuentes y saber decir «no sé»","source|citation|cite|abstain|don't know|do not know"],["A: búsqueda híbrida + modelo local","hybrid|keyword|embedding|retrieval|local|ollama"],["A: evaluación medida","evaluat|judge|measure|test question|confidence"],["R: 18 % → 80 %","eighteen|eighty|18|80|percent"],["Seguridad del agente","agent|injection|tool|block"]],
+ m:["I'm proud of a personal project: a customer support assistant built with retrieval-augmented generation.","The goal was an assistant that answers from the company documents, cites its sources and says 'I don't know' when the answer isn't there.","I used a synthetic knowledge base of forty-three documents and thirty test questions, so I could measure progress honestly.","I combined keyword search and embeddings in a hybrid search, and ran everything locally with an open model through Ollama.","Then I evaluated it with a language model as a judge and with confidence intervals.","Correct answers went from eighteen percent without retrieval to eighty percent with hybrid retrieval, and it abstained correctly on both unanswerable questions.","I also added an agent with tools that blocked a prompt injection attempt."]},
+{f:"fde",e:"psi",q:"How would you explain a technical result to a non-technical stakeholder?",h:"Empieza por el problema de negocio, una cifra que entiendan, límites honestos y la decisión que tienen que tomar.",
+ p:[["Empezar por el problema de negocio","business|problem|goal"],["Lenguaje simple, sin jerga","simple|plain|jargon|analogy|example"],["Una cifra comprensible","out of ten|two out|eight out|percent|number"],["Límites honestos","limit|honest|small|uncertain|risk"],["Siguiente paso / decisión","next step|decision|decide|recommend"]],
+ m:["I start from the business problem, not from the model.","For example, with my retrieval assistant I wouldn't talk about embeddings or ranking.","I would say: before, the assistant answered about two out of ten questions correctly; now it answers eight out of ten, and it says 'I don't know' instead of inventing.","I use one simple number and one concrete example that they recognise.","Then I'm honest about the limits: the test set was small, so the real figure could be a bit higher or lower.","Finally, I finish with a clear next step, like testing it with real users for two weeks, so they can make a decision.","At NTT Data I practise this when I validate results with the client."]},
+{f:"fde",e:"cdt",q:"A client wants an assistant that answers questions over their internal documents. How would you approach it?",h:"Pregunta de diseño: 1) clarifica usuarios, documentos, privacidad y qué es éxito; 2) diseña ingesta → índice híbrido → respuesta con citas → abstención; 3) evalúa con preguntas de referencia; 4) trade-offs coste/latencia/calidad y modelo local vs API.",
+ p:[["Clarificar usuarios, documentos y éxito","clarify|users|who|success|kind of documents"],["Privacidad: API externa o modelo local","privacy|local model|external api|api"],["Ingesta, troceado e índice","chunk|ingest|index|split"],["Búsqueda híbrida y citas","hybrid|keyword|embedding|citation"],["Abstención si no hay respuesta","abstain|guess|don't know"],["Evaluación con preguntas de referencia","test question|evaluat|measure|correctness|faithfulness"]],
+ m:["First I would clarify: who are the users, what kind of documents they have, how often they change, and what a good answer means for them.","I'd also ask about privacy, because that decides if we can use an external API or need a local model.","Then the design: ingest the documents, split them into chunks, and index them with both keywords and embeddings.","For each question, a hybrid search retrieves the best chunks, and the model answers only from them, with citations.","If the context doesn't contain the answer, it should abstain instead of guessing.","Before going live, I'd build a set of test questions with the client and measure correctness, faithfulness and latency.","The main trade-offs are quality against cost and latency, and a simple pipeline against an agent with tools.","I followed this approach in a personal project, and the evaluation set was what really guided my decisions."]},
+{f:"fde",e:"psi",q:"How would you make an AI system reliable and safe in production?",h:"Medir antes y después de cada cambio, abstención, permisos en las herramientas, inyección de prompts, trazas y monitorización.",
+ p:[["Evaluar con un conjunto fijo","evaluat|test set|measure"],["Abstenerse en vez de inventar","abstain|evidence|inventing|hallucinat"],["Controles estrictos en las herramientas","tool|check|permission|agent"],["Inyección de prompts","injection|attack|malicious"],["Trazas, monitorización y feedback","log|trace|monitor|feedback"],["Paralelo con tus pipelines","pipeline|retry|retries|validation|control table"]],
+ m:["For me, reliability starts with measurement, so I evaluate the system on a fixed test set before and after every change.","Second, the model should abstain when it doesn't have evidence, instead of inventing an answer.","Third, if it's an agent, every tool needs strict checks: in my personal project, the agent was not allowed to read another customer's order.","When I tested a prompt injection asking for that order, the tool blocked it.","Finally, in production I would log every trace, monitor errors and latency, and collect user feedback.","It's similar to what I do with data pipelines at work: retry policies, automatic validations after each run, and control tables that flag bad loads."]},
+{f:"fde",e:"psi",q:"How do you handle unclear or changing requirements from a client?",h:"Concretar pronto, resumen por escrito, entregar algo pequeño y validarlo, explicar el impacto de cada cambio. Ejemplo real: ficheros y FTP en NTT Data.",
+ p:[["Preguntas concretas","specific question|question|clarify|concrete"],["Resumen escrito / confirmar","summary|write|confirm|agreed"],["Ejemplo real (NTT Data)","ntt|ftp|files|etl"],["Entregar algo pequeño pronto y validarlo","small|early|first version|prototype|validat"],["Explicar impacto y decidir juntos","impact|priorit|time|decide together"]],
+ m:["Unclear requirements are normal, so I try to make them concrete as early as possible.","In meetings I ask specific questions, and afterwards I write a short summary of what we agreed, so we can both confirm it.","At NTT Data, for example, we had to clarify things like which files arrive, where they are located and how they move over FTP, before designing the ETL.","Then I prefer to deliver something small early and validate it with the client, because a real table answers more questions than a long document.","When a requirement changes, I explain the impact on time and priorities, and we decide together.","This way changes don't become surprises at the end of the project."]},
+{f:"fde",e:"cdt",q:"Walk me through your first week with a new customer.",h:"Escuchar y definir éxito → acceso a datos y calidad → prototipo pequeño → riesgos y prioridades → resumen escrito.",
+ p:[["Entender el objetivo y medir el éxito","stakeholder|business goal|goal|success|measure"],["Acceso a datos y calidad pronto","access|data|quality|systems"],["Prototipo o primer flujo","prototype|first|small|working"],["Riesgos y trade-offs","risk|trade off|priorit"],["Resumen y siguientes pasos","summary|plan|next step"]],
+ m:["In the first days I would focus on listening: meeting the stakeholders, understanding the business goal and agreeing how we will measure success.","Then I would get access to the data and the systems, and check the quality of the data early, because that's usually where the surprises are.","By the end of the week I'd like to have a small prototype or a first data flow working, even if it's simple.","I'd also list the risks and trade-offs, for example speed against quality, and agree on priorities with the customer.","Finally, I'd send a short written summary with the plan and the next steps.","It builds on what I already do with clients at NTT Data, but with more ownership, which is what attracts me to this role."]},
+{f:"fde",e:"star",q:"Tell me about a time you learned a new technology quickly.",h:"STAR honesto: aprendiste LLM/RAG con un proyecto personal medible (no lo usas aún en el trabajo: dilo).",
+ p:[["S: querías experiencia práctica con LLM","language model|llm|generative|practical"],["Honestidad: aún no en tu trabajo","don't use|not yet|personal project|my own"],["T: construir algo medible","measure|goal|build"],["A: paso a paso con pruebas","step by step|embedding|keyword|test|judge"],["R: resultado con cifra","eighty|80|percent|working system"],["Cómo aprendes en general","documentation|small|usually learn"]],
+ m:["After my master's in AI, I wanted practical experience with large language models, which I don't use yet in my job.","So I set myself a goal: build a retrieval assistant that I could measure, not just a demo.","I learned it step by step: first embeddings and keyword search, then generation with citations, and finally evaluation with a language model as a judge.","Every step had a small test, so I knew if I really understood it.","In the end I had a working system that reached eighty percent correct answers on my test set.","That's how I usually learn: reading the documentation, building something small, and measuring it."]},
+/* ---------- DATA SCIENTIST / IA ---------- */
+{f:"ds",e:"ppf",q:"Tell me about yourself.",h:"Matemático → Máster IA → TFG con BERT → trabajo con datos en NTT Data → proyectos de ML con cifras → busco Data Scientist.",
+ p:[["Matemáticas + Máster en IA","mathemati|master|artificial intelligence"],["TFG: BERT + LIME","thesis|bert|lime|intent"],["Trabajo actual con datos","ntt|junior engineer|etl|sql|python"],["Proyectos de ML con cifra","forecast|recommend|explainab|thirty four|34"],["Qué buscas","data scientist|looking for|role"]],
+ m:["I'm a mathematician who moved into AI.","I studied a degree in mathematics and a master's in logic, computation and artificial intelligence at the University of Seville.","In my bachelor's thesis I fine-tuned a BERT model for intent detection and explained its predictions with LIME.","Since March 2025 I've worked as a junior engineer at NTT Data, building ETL pipelines and validating data with SQL and Python every day.","In parallel, I've built personal machine learning projects: a demand forecast that cut the error by thirty-four percent against a seasonal baseline, a recommender system and an explainable AI lab.","Now I'm looking for a data scientist role where I can use both the modelling and the data engineering side."]},
+{f:"ds",e:"ppf",q:"Why do you want to work as a data scientist?",h:"Te gusta modelizar (matemáticas), ya conoces los datos reales, tienes proyectos que lo prueban y te importa la evaluación rigurosa.",
+ p:[["Gusto por modelizar","mathematic|model|test"],["Ya trabajas con datos reales","pipeline|duplicate|null|real data|job"],["Apoyar decisiones","decision|business|impact"],["Proyectos personales","forecast|recommender|walmart|personal project"],["Rigor en la evaluación","evaluation|backtest|confidence|honest|conclusive"]],
+ m:["Since my mathematics degree, what I enjoy most is turning a messy problem into a model I can test.","In my current job I work with real data every day: I build pipelines and check duplicates and null values, so I know how much effort good data needs.","But I want to go one step further and use that data to support decisions.","That's why I built personal projects, like a demand forecast for seventy Walmart series and a movie recommender.","What I like most is the evaluation part: backtesting, confidence intervals, and being honest when a result is not conclusive.","A data scientist role would let me combine that rigor with real business impact."]},
+{f:"ds",e:"star",q:"Walk me through a machine learning project from start to finish.",h:"STAR con tu proyecto personal de previsión (Walmart M5): baseline → ETS/ARIMA vs LightGBM → backtest sin fuga → −34 % WAPE → intervalos calibrados.",
+ p:[["S: reposición con «lo mismo que la semana pasada»","walmart|demand|last week|baseline"],["T: prever 28 días con un rango","twenty eight|28|forecast|range|interval"],["A: baselines y modelos","ets|arima|lightgbm|baseline|global model"],["A: validación sin fuga","leak|backtest|rolling|hold out|holdout|lag"],["R: −34 % de error","thirty four|34|percent|error|wape"],["Intervalos calibrados","calibrat|interval|eighty|coverage"]],
+ m:["In a personal project I forecast daily demand for seventy product lines from the Walmart M5 dataset.","The baseline was the rule 'the same as last week', which missed around thirteen to fifteen percent of the units.","My task was to predict the next twenty-eight days, with a reliable range for safety stock.","I started with simple baselines, then compared ETS and ARIMA per series against one global LightGBM model with calendar and price features.","To avoid leakage, I used lags of at least twenty-eight days, a rolling-origin backtest and a sealed hold-out period.","LightGBM reduced the weighted error by thirty-four percent against the seasonal naive baseline, and the hold-out confirmed it.","I also calibrated the prediction intervals so the ten to ninety percent range covered about eighty percent of the real values."]},
+{f:"ds",e:"psi",q:"How do you validate a model and avoid overfitting or data leakage?",h:"Baseline, partición temporal, backtest rolling + hold-out sellado, revisar fugas en cada variable, intervalos de confianza.",
+ p:[["Baseline como listón","baseline|beat"],["Partición que imita la realidad (temporal)","split|temporal|time"],["Backtest y hold-out sellado","backtest|rolling|hold out|holdout|sealed"],["Revisar fugas en las variables","leak|feature|lag"],["Intervalos de confianza / honestidad","confidence|interval|conclusive|honest"]],
+ m:["First, I always set a simple baseline, because a complex model is only useful if it beats it clearly.","Second, I split the data in a way that matches reality: with time series or user behaviour, the split must be temporal.","In my forecasting project I used a rolling-origin backtest with four origins, and I kept a sealed hold-out that I only looked at once.","Third, I check every feature for leakage: for example, only using lags of at least twenty-eight days when forecasting twenty-eight days ahead.","Finally, I report confidence intervals, not just one number.","In my recommender project, a stricter global time split showed that the improvement was not conclusive, and I reported that honestly."]},
+{f:"ds",e:"psi",q:"How would you explain a model's predictions to a non-technical person?",h:"Tu laboratorio XAI: nivel global (SHAP, permutación, PDP) y local (por qué a esta persona + contrafactual), estabilidad, AI Act, informe para negocio y auditor.",
+ p:[["Caso de alto riesgo / AI Act","ai act|high risk|credit|regulat"],["Explicación global","global|variables|shap|permutation"],["Explicación local","local|specific person|one person|why"],["Contrafactuales","counterfactual|change|yes"],["No fiarse de una sola técnica","single technique|stab|seed|compare"],["Lenguaje claro / dos informes","plain|business|auditor|report"]],
+ m:["I built an explainable AI lab on a credit scoring style case, which the AI Act considers high risk.","I explain at two levels.","Globally, I show which variables the model looks at, comparing SHAP, permutation importance and partial dependence.","Locally, I explain why one specific person got a 'no', and with counterfactuals, what small and realistic change would turn it into a 'yes'.","I don't trust a single technique, so I measure stability: for example, LIME was fairly stable across random seeds.","For a non-technical person, I translate it into plain sentences, like 'your capital gains and your age had the biggest effect'.","And I prepared two versions of the report: one for the business and one for an auditor."]},
+{f:"ds",e:"cdt",q:"How would you evaluate an LLM or RAG application?",h:"Diseño de evaluación: clarificar éxito → conjunto de referencia (paráfrasis + sin respuesta) → recuperación (recall@k) y generación (corrección, fidelidad, LLM-juez) → abstención → intervalos.",
+ p:[["Clarificar qué es éxito","clarify|success|users"],["Conjunto de preguntas de referencia","reference|test set|expected answer|paraphras"],["Recuperación: recall@k","recall|retrieval|search"],["Respuesta: corrección, fidelidad, juez","correctness|faithfulness|judge"],["Abstención sin exceso","abstention|abstain|don't know|false"],["Intervalos con muestras pequeñas","bootstrap|confidence|interval|thirty questions"]],
+ m:["First I'd clarify what success means for the users: correct answers, sources they can check, and fast responses.","Then I'd build a reference set of questions with expected answers, including paraphrases and questions with no answer.","I evaluate retrieval and generation separately: recall at k for the search, and correctness and faithfulness for the answers, using a language model as a judge that should be checked by hand on some cases.","Abstention matters too: the system must say 'I don't know' when it should, but without too many false abstentions.","In my RAG project, correctness went from eighteen to eighty percent, and I reported bootstrap confidence intervals, because with thirty questions each one moves the score a lot.","The trade-off is evaluation cost against confidence, so I'd start small and grow the test set with real user questions."]},
+{f:"ds",e:"cdt",q:"How would you build a recommender system for an online shop?",h:"Diseño: objetivo y tipo de feedback → baseline popularidad → colaborativo + contenido → híbrido → split temporal y NDCG → A/B test. Cita tu proyecto personal MovieLens con su límite: el split tenía fuga y con corte temporal global la ventaja no se confirma.",
+ p:[["Clarificar objetivo y feedback implícito","clarify|goal|clicks|purchases|feedback"],["Baseline de popularidad","popular|baseline"],["Colaborativo + contenido","collaborative|nearest neighbo|als|content|embedding"],["Evaluación offline temporal (NDCG)","temporal|ndcg|ranking|coverage"],["Resultado de tu proyecto","movielens|zero point one four seven|0.147|twenty three|23"],["Límite honesto (fuga) y confirmar con A/B test","leak|not confirmed|a b test|ab test"]],
+ m:["I'd start by clarifying the goal: more sales, more discovery, or both, and what feedback we have, usually clicks and purchases rather than ratings.","Then I'd set a popularity baseline, because it is surprisingly hard to beat.","Next, collaborative filtering, like item nearest neighbours or implicit ALS, plus a content model with embeddings for new items.","A hybrid can combine them, with weights chosen on a validation set.","For evaluation, I'd use a temporal split and ranking metrics like NDCG at ten, coverage and novelty.","In my personal project on MovieLens, the hybrid reached an NDCG of zero point one four seven against zero point zero seven seven for popularity, and recommended twenty-three percent of the catalogue instead of three.","But I always add the limitation: that split had leakage between users, and with a clean global time cut, on only ninety-one users, popularity scored zero point one one six and the hybrid zero point one, so the advantage was not confirmed.","That's why the offline result must be confirmed with an A/B test, and each recommendation should be explained, like 'because you watched this film'."]},
+{f:"ds",e:"star",q:"Tell me about your thesis.",h:"TFG real: explicabilidad con Transformers, fine-tuning de BERT para intención, LIME. Conecta con tu laboratorio XAI.",
+ p:[["Tema: explicabilidad con Transformers","explainab|transformer|thesis"],["Fine-tuning de BERT para intención","bert|fine tun|intent"],["LIME: qué palabras empujan la predicción","lime|words|explain"],["Lo que aprendiste y continuación","learn|responsible|lab|shap|counterfactual"]],
+ m:["My bachelor's thesis was about explainability with Transformer models.","The task was intent detection: classifying what a user wants from a short sentence.","I fine-tuned a BERT model for that classification, and then used LIME to explain each prediction, showing which words pushed the model towards an intent.","It taught me that good accuracy is not enough if you can't explain why the model decides.","That thesis is where my interest in responsible AI started.","Later I continued it with a personal explainable AI lab using SHAP, LIME, counterfactuals and fairness metrics."]},
+{f:"ds",e:"psi",q:"How do you connect model metrics to business value?",h:"Traduce métricas a decisiones: −34 % de error → ~1.400 unidades/día; plan de turnos (98 % vs 99 % de servicio, +1,3 % coste); rutas −17,5 % km/pedido.",
+ p:[["La métrica debe cambiar una decisión","business|decision|translate"],["Previsión: unidades de error","units|error|thirty four|forecast"],["Planificación: coste y servicio","cost|service|shift|staff|plan"],["Rutas: −17,5 % km/pedido","route|kilometre|kilometer|seventeen"],["Presentar opciones y trade-off","trade off|option|choose"]],
+ m:["A model metric only matters if it changes a business decision, so I try to translate it.","In my forecasting project, the thirty-four percent lower error meant about one thousand four hundred fewer units of error per day than 'the same as last week'.","Then I used that forecast in a planning project: staff shifts, stock and delivery routes.","There, the metric became money and service: the cheapest plan served ninety-eight percent of orders on time, and a slightly bigger team reached ninety-nine percent for one point three percent more cost.","For the routes, an optimised solver reduced the kilometres per order by seventeen and a half percent.","So I present the options and the trade-off, and the business chooses the service level it wants."]},
+{f:"ds",e:"psi",q:"How do you deal with bias and fairness in a model?",h:"Medir por grupos, proxies (AUC 0,93), separar datos vs modelo (ratio 0,33 vs base 0,37; ΔTPR 0,08), documentar y AI Act.",
+ p:[["Medir por grupos","group|women|men|sex|gender"],["Proxies: quitar la columna no basta","proxy|proxies|predict it|removing the column"],["Separar datos y modelo","base rate|data|comes from"],["Métricas: TPR, ratio de selección","true positive|selection ratio|tpr"],["Documentar y AI Act","document|ai act|auditor|threshold"]],
+ m:["First, I measure performance and decisions by group, even if the sensitive variable is not in the model.","In my explainable AI lab, sex was not a feature, but other variables could predict it with an AUC of zero point nine three, so removing the column doesn't remove the bias.","Then I separate what comes from the data and what comes from the model.","The selection ratio between women and men was zero point three three, but most of that came from the base rates in the data.","The gap that belonged to the model was the difference in true positive rate, about eight points.","Finally, I document the trade-offs, like changing the threshold, and connect them to the AI Act, so an auditor can review the decision."]},
+/* ---------- DATA ENGINEER ---------- */
+{f:"de",e:"ppf",q:"Tell me about yourself.",h:"Presente: Airflow + ODI/Stratio + SQL + Python en NTT Data → pasado: Matemáticas y Máster IA → futuro: más plataforma y más responsabilidad.",
+ p:[["Rol actual: Junior Engineer en NTT Data","ntt|junior engineer|data engineering"],["Airflow: sensores, reintentos, validaciones","airflow|sensor|retry|retries|validation"],["ETL con ODI / Stratio + SQL","oracle data integrator|odi|stratio|sql|etl"],["Automatización con Python","python|automat|script"],["Formación","mathematic|master|artificial intelligence"],["Qué buscas","platform|ownership|next|bigger"]],
+ m:["I'm a junior engineer at NTT Data, working in data engineering since March 2025, after a summer internship there.","I orchestrate ETL processes with Apache Airflow, using sensors for dependencies, retry policies and automatic validations after each run.","I also build and maintain ETLs in Oracle Data Integrator and Stratio, and I use SQL every day to validate the data.","On top of that, I write Python scripts to automate work, for example generating DAG sensors automatically from our Git repositories.","My background is a degree in mathematics and a master's in artificial intelligence, so I'm comfortable with the analytics and machine learning side as well.","Now I'd like to take on bigger data platforms and more ownership."]},
+{f:"de",e:"ppf",q:"Why data engineering?",h:"Todo depende de buenos datos; te gusta la orquestación, la calidad y automatizar; entiendes lo que necesitan los data scientists.",
+ p:[["Todo depende de los datos","depends|data underneath|foundation|everything else"],["Valor de un pipeline fiable","pipeline|every day|reliable"],["Orquestación y calidad","airflow|orchestration|retries|validation"],["Automatizar con Python","automat|python"],["Puente con IA / data scientists","data scientist|artificial intelligence|machine learning"]],
+ m:["I like data engineering because everything else depends on it: no model or dashboard is better than the data underneath.","In my job at NTT Data I've seen how much value there is in a pipeline that runs every day without anyone thinking about it.","I enjoy the engineering part: orchestration in Airflow, dependencies, retries, and validations that catch problems early.","I also love automating repetitive work with Python.","And because I studied artificial intelligence, I understand what data scientists need from the data, which helps me design better tables for them.","I want to keep growing in this direction, with larger volumes and more modern platforms."]},
+{f:"de",e:"star",q:"Describe an ETL pipeline you built.",h:"STAR real: cargas con dependencias, ODI/Stratio, Airflow con sensores y reintentos, validaciones y tablas de control.",
+ p:[["S: cargas con dependencias para un cliente","client|depend|loads|files"],["T: orden correcto y resultados correctos","right order|correct|build and maintain"],["A: cruces y transformaciones en ODI / Stratio","oracle data integrator|odi|stratio|join|transformation"],["A: Airflow con sensores y reintentos","airflow|sensor|retry|retries"],["R: validaciones automáticas y tablas de control","validation|control table|duplicate|null|trust"]],
+ m:["At NTT Data I work on ETL processes for a client, where some loads depend on others and on files that arrive from outside.","My task was to build and maintain these flows so they run in the right order and the results are correct.","I designed the joins and transformations in Oracle Data Integrator and Stratio, based on the client's requirements.","In Apache Airflow I orchestrated the processes, using sensors to wait for dependencies and retry policies for temporary failures.","After each run, automatic validations and control tables check the loads, for example duplicates and null values.","The result is that every load is checked automatically, and the client can trust the final table."]},
+{f:"de",e:"psi",q:"How do you ensure data quality?",h:"Duplicados y nulos con SQL (ROW_NUMBER), integridad PK/FK, validación automática tras cada carga en tablas de control, lógica validada con el cliente, Python cuando es más rápido.",
+ p:[["Duplicados y nulos en SQL","duplicate|null|row number"],["Integridad de claves","primary|foreign|key|integrity"],["Automático tras cada carga","automatic|after each|control table"],["Validar la lógica con el cliente","client|business logic|expect"],["Rendimiento: Python más rápido","python|faster|slow"]],
+ m:["I treat data quality as part of the pipeline, not as a final check.","In SQL I check duplicates and null values, for example with ROW_NUMBER to find repeated keys, and I make sure primary and foreign keys stay consistent.","These checks run automatically after each load, and the results go to control tables, so we see problems immediately.","I also validate the business logic with the client: the numbers must match what they expect, not only pass technical rules.","And when a validation was slow in SQL, I implemented it in Python, which turned out to be faster.","The impact is that errors are caught right after the load, before anyone uses the data."]},
+{f:"de",e:"star",q:"Tell me about a time you integrated data from many sources.",h:"STAR real: integración de 29 hospitales con scripts Python y web scraping, validación de duplicados y nulos.",
+ p:[["S: 29 hospitales / múltiples orígenes","twenty nine|29|hospital|multiple sources"],["T: una estructura común","one consistent|structure|integrat|combine"],["A: scripts Python y scraping","python|script|scraping|scrape"],["A: validación (duplicados, nulos)","validat|duplicate|missing|null"],["R: un dataset integrado y automático","one integrated|automated|dataset|instead of"]],
+ m:["In one task at NTT Data I had to integrate data from multiple sources: twenty-nine hospitals.","With so many sources, the challenge was to bring everything into one consistent structure.","I wrote Python scripts to collect the data, including web scraping where it was needed.","Then I validated the result, checking duplicates and missing values before loading it.","The result was one integrated dataset instead of twenty-nine separate ones, produced by an automated process.","I check duplicates and nulls with SQL every day, so this kind of validation is part of my normal work."]},
+{f:"de",e:"cdt",q:"How would you design a pipeline that ingests daily files from many sources?",h:"Diseño: clarificar volumen/formato/frecuencia/plazo → aterrizaje en SFTP + sensor → capas raw/staging/final → idempotencia y particiones por fecha → validaciones en tablas de control → trade-off batch vs streaming.",
+ p:[["Clarificar volumen, formato, frecuencia y plazo","clarify|volume|format|how often|deadline"],["Aterrizaje SFTP + sensor de Airflow","sftp|sensor|land|arrive"],["Capas raw → staging → final","raw|staging|layer|final layer"],["Idempotencia y particiones por fecha","idempotent|partition|backfill|rerun|retry"],["Validaciones en tablas de control","validation|control table|row count|duplicate|null"],["Trade-off batch vs streaming","batch|streaming|trade off|cheaper"]],
+ m:["First I'd clarify the volume, the file formats, how often they arrive, and the deadline for the final data.","For ingestion, the files would land in a secure location, like SFTP, and an Airflow sensor would start each flow when its file arrives.","I'd keep layers: raw files untouched, a staging layer with types and cleaning, and a final layer with the business tables.","Each task should be idempotent and partitioned by date, so a retry or a backfill doesn't create duplicates.","After each load, automatic validations write to control tables: row counts, duplicates and null values.","The main trade-off is batch against streaming: with daily files, batch is simpler and cheaper.","I've used several of these pieces at work, like Airflow sensors, retries and control tables, and I also migrated file transfers from FTP to SFTP with Python."]},
+{f:"de",e:"psi",q:"How do you optimise a slow query or join?",h:"Medir primero (plan de ejecución), filtrar pronto, particiones e índices respetando PK/FK, broadcast join en Spark, a veces Python es más rápido.",
+ p:[["Medir primero: plan de ejecución","execution plan|measure|where the time"],["Filtrar pronto y leer solo lo necesario","filter|early|columns|only"],["Particiones e índices","partition|index"],["Broadcast join","broadcast"],["Elegir la herramienta y comparar tiempos","python|faster|before and after|compare"]],
+ m:["First I measure: I look at the execution plan to see where the time goes, instead of guessing.","Very often the fix is to filter early and read only the columns and partitions I need.","Partitions and indexes help a lot, as long as they respect the primary and foreign keys.","In Spark, when one side of a join is small, a broadcast join avoids shuffling the big table, and I've used it to optimise joins.","Sometimes the best tool is different: in my job, some validations were faster in Python than their SQL equivalent.","Finally, I compare times before and after, so the improvement is real."]},
+{f:"de",e:"psi",q:"What do you do when a pipeline fails?",h:"Diseñar esperando fallos: reintentos, sensores, validaciones que frenan cargas malas, idempotencia para re-ejecutar, causa raíz y nueva validación.",
+ p:[["Reintentos para fallos temporales","retry|retries|temporary"],["Sensores y dependencias","sensor|dependenc|ready"],["Validaciones que frenan cargas malas","validation|bad load|check"],["Idempotencia para re-ejecutar","idempotent|rerun|safely|duplicate"],["Causa raíz y aprender del fallo","log|root cause|fix|learn"]],
+ m:["I design pipelines expecting failures.","In Airflow, temporary errors like a network problem are handled with retry policies, and sensors make sure a task only starts when its dependencies are ready.","After each run, automatic validations check the results, so a bad load doesn't silently reach the final tables.","When something does fail, the tasks should be idempotent, so I can rerun them safely without duplicates.","Then I read the logs, find the root cause and fix it, not just restart it.","And if a failure repeats, I add a new validation, so the pipeline learns from it."]},
+{f:"de",e:"star",q:"Tell me about an automation you are proud of.",h:"STAR real: script Python que extrae dependencias de repositorios Git y genera sensores de DAGs; también la migración FTP → SFTP.",
+ p:[["S: sensores escritos a mano","sensor|dag|by hand|manual"],["A: extraer dependencias de Git","git|repositor|extract|dependenc"],["A: generar sensores con Python","python|script|generat|automatic"],["Otra automatización: FTP → SFTP","ftp|sftp|migrat"],["R: menos trabajo manual, coherencia","less manual|consistent|reliable tool"]],
+ m:["In Airflow, every DAG needs sensors that wait for the processes it depends on, and writing them by hand is slow and easy to get wrong.","I noticed that those dependencies could be extracted from our Git repositories.","So I wrote a Python script that extracts the dependencies from the repositories and generates the sensors automatically.","I also automated other operational tasks, like migrating file transfers from FTP to SFTP.","The result is less manual work and sensors that are consistent with the real dependencies.","It's the kind of work I enjoy: finding a repetitive task and turning it into a reliable tool."]},
+{f:"de",e:"cdt",q:"How would you design the data model for a reporting table a client needs?",h:"Diseño: preguntas de negocio y granularidad → fuentes y cruces → hechos y dimensiones → claves e historial → validación con cliente → trade-off tabla ancha vs normalizada.",
+ p:[["Clarificar preguntas y granularidad","clarify|business question|grain|one row per"],["Fuentes y cruces","source|join|files"],["Hechos y dimensiones (estrella)","fact|dimension|star schema"],["Claves e historial","key|history|changes"],["Validación con el cliente","validat|client|control table"],["Trade-off desnormalizada vs normalizada","denormali|normali|trade off|flexible"]],
+ m:["First I'd clarify the business questions the table must answer, because that defines the grain: one row per what, and per which period.","Then I'd map the sources: which tables and files contain each field, and how they join.","For the model, I'd usually go with facts and dimensions, a star schema, which is easy to query and to explain.","I'd define the keys carefully, and decide how to keep history when a dimension changes.","Before delivering, I'd validate the numbers with the client and add control tables to check every load.","The trade-off is a wide denormalised table, which is fast and simple for reporting, against a normalised model that's more flexible.","This is close to what I do at NTT Data, where I design the joins and transformations for the client's final reporting table."]},
+/* ---------- COMUNES ---------- */
+{f:"comun",e:"psi",q:"What is your biggest weakness?",h:"Debilidad real + plan: aún no tienes modelos de ML en producción en el trabajo (lo compensas con proyectos medidos) e inglés B2 (practicas a diario).",
+ p:[["Debilidad real y concreta","weakness|production|experience yet"],["Contexto honesto","data engineering|personal projects|master"],["Qué haces para mejorar","build|measure|practise|practice|improv"],["Segundo punto: inglés B2","english|b2|b two|spoken"],["Actitud","aware|plan|improve quickly"]],
+ m:["My main weakness is that I don't have experience yet with machine learning models in production at work.","My daily job is data engineering, so the AI part comes from my master's and my personal projects.","To work on it, I build complete projects and measure them as if they were real, for example a retrieval assistant with an evaluation set and confidence intervals.","Another point I'm improving is my spoken English: my level is B2, and I practise every day with a pronunciation app.","I think being aware of these gaps and having a plan for them is what helps me improve quickly."]},
+{f:"comun",e:"psi",q:"What are your salary expectations?",h:"No inventes cifras: prepara tu rango real antes (portales de salarios para el puesto en España) y dilo como «between X and Y thousand euros». Pregunta su banda.",
+ p:[["Has investigado el mercado","research|market|similar roles"],["Rango, no cifra única","range|flexible|between"],["Paquete completo","package|learning|remote|projects"],["Preguntar su banda","budget|your range|could you share"]],
+ m:["I've researched the market for similar roles in Spain, considering my experience and the responsibilities of this position.","I'd prefer to talk about a range rather than a single number, and I'm flexible.","For me, the full package matters too: learning opportunities, remote work, and the kind of projects.","Could you share the budget range you have for this role?","I'm sure we can find a number that works for both of us."]},
+{f:"comun",e:"ppf",q:"Why are you leaving your current job?",h:"Nunca critiques: has aprendido mucho, quieres acercarte a IA/ML, este puesto es el paso natural.",
+ p:[["En positivo sobre tu empresa","learned a lot|not leaving because|ntt"],["Qué has aprendido","airflow|oracle|stratio|python|client"],["Qué buscas","ai|machine learning|closer"],["Por qué este puesto","this position|next step|grow"]],
+ m:["I'm not leaving because of a problem; I've learned a lot at NTT Data.","In my time there I've worked with Airflow, Oracle Data Integrator, Stratio, Python automation and direct contact with the client.","But I want to work closer to AI and machine learning, which today I only do in my personal projects.","This position is the natural next step, because it combines what I already do well with what I want to grow into."]},
+{f:"comun",e:"ppf",q:"Where do you see yourself in five years?",h:"Referente técnico, impacto medible para clientes, ayudar a juniors, crecer aquí.",
+ p:[["Senior / referente técnico","senior|reference|expert"],["Sistemas en uso con impacto","deployed|impact|used every day|measurable"],["Ayudar a otros","mentor|junior|help"],["Coherente con este puesto","here|this role|direction"]],
+ m:["In five years I see myself as a senior engineer who is a reference for data and AI solutions in my team.","I want to have deployed several AI systems that are used every day and have a measurable impact for clients.","I'd also like to help junior colleagues grow.","And I hope to do that here, because this role is the right first step in that direction."]},
+{f:"comun",e:"psi",q:"Why should we hire you?",h:"Tres razones con pruebas: experiencia real con datos y clientes, base matemática + IA, proyectos medidos (18→80 %, −34 %). Cierra con actitud.",
+ p:[["Experiencia real","ntt|march|pipelines|client"],["Base en matemáticas e IA","mathematic|master|artificial intelligence"],["Pruebas medibles","eighteen|eighty|thirty four|percent|personal projects"],["Aprender rápido y honestidad","learn fast|honest|don't know yet"],["Aportar desde el principio","contribute|first weeks|your team"]],
+ m:["I think I bring a useful combination.","First, real experience: since March 2025 I've built and maintained ETL pipelines at NTT Data and worked directly with the client.","Second, a solid base in mathematics and a master's in artificial intelligence.","Third, proof that I can apply it: personal projects with honest evaluation, like a retrieval assistant that went from eighteen to eighty percent correct answers, and a forecast that cut the error by thirty-four percent.","And I learn fast and I'm honest about what I don't know yet.","I'm confident I can contribute from the first weeks and keep growing with your team."]},
+{f:"comun",e:"preg",q:"Do you have any questions for us?",h:"Siempre di que sí. Lleva 3-4 preguntas: éxito en el puesto, retos, equipo, aprendizaje.",
+ p:[["Agradecer","thank"],["Éxito en el puesto","success|first three months|first months"],["Retos actuales","challenge"],["Equipo","team|work with"],["Aprendizaje","learn|support|training"]],
+ m:["Yes, thank you, I have a few questions.","What would success look like for this role in the first three months?","What are the biggest challenges the team is facing right now?","How is the team organised, and who would I work with most closely?","And how do you support people to keep learning, for example with new AI tools?"]}
+];
+const VOCAB = [["pipeline","PIPE-line"],["data","DAY-ta"],["schema","SKEE-ma"],["SQL","sequel"],["query","QUEER-y"],["cache","cash"],["Azure","AZH-er"],["deploy","de-PLOY"],["analytics","an-a-LIT-ics"],["algorithm","AL-go-rith-m"],["architecture","AR-ki-tek-cher"],["stakeholder","STAKE-hol-der"],["requirements","re-QUIRE-ments"],["scalable","SCALE-a-ble"],["accuracy","AC-cu-ra-cy"],["dataset","DAY-ta-set"],["throughput","THROUGH-put"],["Python","PIE-thon"],["validation","va-li-DAY-shun"],["retrieval","re-TREE-val"],["idempotent","eye-dem-POH-tent"],["faithfulness","FAITH-ful-ness"],["counterfactual","coun-ter-FAC-tual"],["leakage","LEE-kij"],["orchestrate","OR-kes-trate"]];
+const FILLERS = ["um","uh","erm","er","like","you know","i mean","basically","actually","so","kind of","sort of","eh"];
+/* Vocabulario técnico para «Rellena el hueco» (se busca en las frases de las respuestas modelo) */
+const TECH = new Set(("pipeline pipelines airflow oracle python sql validation validations validate validated retrieval embeddings forecast forecasting baseline backtest recommender explainability explainable stakeholders requirements production dataset latency metrics schema partitions partitioned indexes duplicates sensors retry retries idempotent scraping integrate integrated hospitals transformer citations evaluation evaluate evaluated leakage confidence intervals abstain abstention injection faithfulness correctness collaborative counterfactuals fairness threshold orchestrate orchestrated orchestration dependencies repositories transformations joins broadcast execution denormalised dimensions grain prototype stakeholders automate automatically automation calibrated hybrid keyword chunks ingestion staging backfill streaming batch deployed monitor monitoring feedback judge popularity coverage novelty filtering accuracy classification fine-tuned predictions permutation dependence auditor rolling-origin hold-out lags shifts solver kilometres catalogue mathematics artificial intelligence integrator").split(" "));
+/* Cifras → palabras (no al revés): así "three" sigue siendo comparable con "tree" para detectar /θ/ */
+const NUM = {"2":"two","3":"three","4":"four","5":"five","6":"six","10":"ten","70":"seventy","34":"thirty-four","1st":"first"};
+
+/* ===================== FUNCIONES PURAS (se prueban en node: test_funciones.js) ===================== */
+function norm(s){
+  return (s||"").toLowerCase().replace(/[’']/g,"'").replace(/[^a-z0-9' -]/g," ")
+    .split(/\s+/).filter(Boolean).map(w=>NUM[w]||w.replace(/^'+|'+$/g,""));
+}
+const PAIRS = {}; // palabra -> {otra, cat}
+for (const [k,c] of Object.entries(CAT)) for (const p of c.p){ const [a,b]=p.toLowerCase().split("-"); if(a&&b){(PAIRS[a]??={})[b]=k;(PAIRS[b]??={})[a]=k;} }
+function lcsAlign(t,s){ // alineación por LCS → [{t, s, tipo}] tipo: ok | sub | miss
+  const n=t.length,m=s.length,D=Array.from({length:n+1},()=>new Array(m+1).fill(0));
+  for(let i=n-1;i>=0;i--)for(let j=m-1;j>=0;j--)D[i][j]=t[i]===s[j]?D[i+1][j+1]+1:Math.max(D[i+1][j],D[i][j+1]);
+  const out=[];let i=0,j=0;
+  while(i<n){
+    if(j<m&&t[i]===s[j]){out.push({t:t[i],tipo:"ok"});i++;j++;}
+    else if(j<m&&D[i][j+1]>=D[i+1][j]&&D[i+1][j+1]===D[i][j]-0){out.push({t:t[i],s:s[j],tipo:"sub"});i++;j++;}
+    else if(j<m&&D[i][j+1]>D[i+1][j]){j++;}
+    else{out.push({t:t[i],tipo:"miss"});i++;}
+  }
+  return out;
+}
+/* Categoría de dificultad de una palabra (para el consejo al tocarla). null si no hay pista clara. */
+function catDePalabra(w){
+  w=(w||"").toLowerCase();
+  if(PAIRS[w]) return Object.values(PAIRS[w])[0];
+  if(/th/.test(w)) return "th_dh";
+  if(/^s[ptkcmnlw]/.test(w)) return "epentesis";
+  if(/v/.test(w)) return "v_b";
+  if(w.length>4&&/[^e]ed$/.test(w)) return "final_ed";
+  if(/sh|ch|tion$|sion$/.test(w)) return "sh_ch";
+  if(w.length>3&&/[^s'u]s$/.test(w)) return "final_s";
+  return null;
+}
+/* Categoría de una frase = la más frecuente entre sus palabras (para las «frases clave») */
+function catDeFrase(txt){
+  const c={}; for(const w of norm(txt)){ const k=catDePalabra(w); if(k) c[k]=(c[k]||0)+1; }
+  const o=Object.entries(c).sort((a,b)=>b[1]-a[1]); return o.length?o[0][0]:"linking";
+}
+/* Tokens para la cobertura: como norm() pero separando guiones (trade-off = trade off) */
+function normCob(s){ return norm(s).flatMap(w=>w.split("-")).filter(Boolean); }
+/* ¿El token del texto vale por el de la palabra clave? exacto, plural, o prefijo si la clave tiene ≥4 letras (validat → validation) */
+function tokOk(tt,kt){ return tt===kt || tt===kt+"s" || (kt.length>=4 && tt.startsWith(kt)); }
+function contieneClave(toks,clave){
+  const k=normCob(clave); if(!k.length) return false;
+  for(let i=0;i+k.length<=toks.length;i++){ let ok=true; for(let j=0;j<k.length;j++) if(!tokOk(toks[i+j],k[j])){ ok=false; break; } if(ok) return true; }
+  return false;
+}
+/* Cobertura de puntos clave: pts = [[etiqueta,"kw1|kw2"],...] → {cub:[bool], n, pct} */
+function cobertura(txt,pts){
+  const toks=normCob(txt);
+  const cub=pts.map(([,kws])=>kws.split("|").some(k=>contieneClave(toks,k)));
+  const n=cub.filter(Boolean).length; return {cub,n,pct:pts.length?Math.round(100*n/pts.length):0};
+}
+/* Muletillas → {fill, fdet}. "I'd like to", "looks like" y "so that/so far" no cuentan; "so" solo al empezar frase
+   (o tras otra muletilla: "Um, so…"). ", so" que une dos frases ("…the data, so I…") es conector, no muletilla. */
+const SO_TRAS_MULETILLA=/(^|[.;?!])\s*((um|uh|erm|er|eh|well|ok|okay|right|yeah)\s*,?\s*)+,\s*$/;
+function contarMuletillas(txt){
+  let fill=0; const fdet={};
+  const LIKE_OK=/(i'd|i|we|you|they|he|she|would|don't|didn't|looks?|feels?|sounds?|seems?|something|things?)\s+like\s+$/;
+  const plano=" "+(txt||"").toLowerCase().replace(/[’]/g,"'").replace(/[^a-z'.,;?! ]/g," ").replace(/\s+/g," ")+" ";
+  for(const f of FILLERS){
+    const re=new RegExp("(?<![a-z'])"+f.replace(/ /g,"\\s+")+"(?![a-z'])","g"); let m, c=0;
+    while((m=re.exec(plano))){
+      const antes=plano.slice(0,m.index), despues=plano.slice(m.index+m[0].length);
+      if(f==="like" && LIKE_OK.test(antes+"like ")) continue;
+      if(f==="so" && !(/(^\s*|[.;?!]\s*)$/.test(antes)) && !SO_TRAS_MULETILLA.test(antes)) continue;
+      if(f==="so" && /^\s*(that|far|much|many)\b/.test(despues)) continue;
+      c++;
+    }
+    if(c){ fill+=c; fdet[f]=c; }
+  }
+  return {fill,fdet};
+}
+function puntFluidez(fill,wpm,n){ return Math.max(0,Math.min(100,100-fill*8-(wpm&&(wpm<110||wpm>170)?15:0)-(n<60?15:0))); }
+/* Si la cobertura es muy baja (< 20 %, respuesta fuera de tema) la fluidez pesa en proporción: flu·cob/20.
+   Así hablar bien de otra cosa no puntúa (0 % → 0). Desde 20 % en adelante, 60 % cobertura + 40 % fluidez. */
+const COB_MIN=20;
+function fluidezEfectiva(cobPct,flu){ return cobPct<COB_MIN ? flu*cobPct/COB_MIN : flu; }
+function notaEntrevista(cobPct,flu){ return Math.round(.6*cobPct+.4*fluidezEfectiva(cobPct,flu)); }
+/* Palabras más falladas a partir del historial (campo nuevo opcional r.fallos; los registros antiguos no lo tienen) */
+function contarFallos(intentos,max=20){
+  const c={},cat={};
+  for(const r of intentos||[]){
+    for(const w of (r.fallos||[])){ if(!w||w.length<2) continue; c[w]=(c[w]||0)+1; if(!cat[w]&&r.cat&&CAT[r.cat]) cat[w]=r.cat; }
+    if(r.modo==="repaso"&&r.score>=100&&r.ref) c[r.ref]=(c[r.ref]||0)-1;   // acertarla en el repaso la baja en la lista
+  }
+  return Object.entries(c).filter(([,n])=>n>0).sort((a,b)=>b[1]-a[1]).slice(0,max)
+    .map(([w,n])=>({w,n,cat:catDePalabra(w)||cat[w]||"acento"}));
+}
+/* «Rellena el hueco»: tapa el término técnico más largo de la frase → {txt, full, palabra} o null */
+function hacerHueco(frase){
+  const re=/[A-Za-z][A-Za-z'-]*/g; let m, mejor=null;
+  while((m=re.exec(frase))){ const w=m[0].toLowerCase(); if(TECH.has(w)&&(!mejor||w.length>mejor.w.length)) mejor={w,i:m.index,l:m[0].length}; }
+  if(!mejor) return null;
+  return {txt:frase.slice(0,mejor.i)+"_____"+frase.slice(mejor.i+mejor.l), full:frase, palabra:mejor.w};
+}
+/* ¿Ha dicho la palabra del hueco? (acepta plural/singular y que diga la frase entera) */
+function sing(w){ return /ies$/.test(w)?w.slice(0,-3)+"y":w.replace(/s$/,""); }
+function aciertaHueco(dicho,palabra){
+  const s=normCob(dicho), k=normCob(palabra); if(!k.length) return false;
+  for(let i=0;i+k.length<=s.length;i++){ let ok=true; for(let j=0;j<k.length;j++){ const a=s[i+j],b=k[j]; if(!(a===b||sing(a)===sing(b)||a===b+"es"||b===a+"es")){ok=false;break;} } if(ok) return true; }
+  return false;
+}
+/* ---- Voz (T32): elegir voz en-US fiable y hablar con reintento sin voz ---- */
+/* Voces "de broma" de Apple: suenan raro o no suenan; nunca se eligen */
+const VOZ_RARA=/^(Albert|Bad News|Bahh|Bells|Boing|Bubbles|Cellos|Good News|Jester|Organ|Superstar|Trinoids|Whisper|Wobble|Zarvox|Deranged|Hysterical|Pipe Organ)(?![a-z])/i;
+function elegirVoz(lista){
+  const en=(lista||[]).filter(v=>v&&/^en[-_]us$/i.test(v.lang||"")&&!VOZ_RARA.test(v.name||""));
+  return en.find(v=>v.default)||en.find(v=>/Samantha|Google US English|Microsoft (Aria|Jenny|Guy|Zira)/i.test(v.name||""))||en.find(v=>v.localService)||en[0]||null;
+}
+/* Habla partes [{t,r,alEmpezar,alAcabar}] de forma SÍNCRONA (iOS exige speak() dentro del toque).
+   - cancel() solo si ya está sonando (cancel+speak seguidos deja mudo a Safari/Chrome Android)
+   - resume() por si Chrome dejó la síntesis en pausa
+   - si la voz elegida falla (onerror) o en 1,5 s no ha empezado nada → repite SIN voice, solo lang en-US */
+function decirCon(ss,Utt,partes,voz,setT){
+  if(ss.speaking||ss.pending) ss.cancel();
+  try{ if(ss.resume) ss.resume(); }catch(e){}
+  let empezo=false, reintentado=false; const vivas=[];
+  const lanzar=conVoz=>partes.forEach(p=>{
+    const u=new Utt(p.t); u.lang="en-US"; u.rate=p.r||1; if(conVoz&&voz) u.voice=voz;
+    u.onstart=()=>{ empezo=true; if(p.alEmpezar) p.alEmpezar(); };
+    u.onend=()=>{ if(p.alAcabar) p.alAcabar(); };
+    u.onerror=e=>{ if(p.alAcabar) p.alAcabar(); const er=e&&e.error||"";
+      if(conVoz&&voz&&!empezo&&!/interrupted|canceled/.test(er)) reintentar(); };
+    vivas.push(u); ss.speak(u);
+  });
+  const reintentar=()=>{ if(reintentado) return; reintentado=true; try{ ss.cancel(); }catch(e){} lanzar(false); };
+  lanzar(true);
+  if(setT) setT(()=>{ if(!empezo&&!ss.speaking) reintentar(); },1500);
+  return vivas;
+}
+/* ---- Micrófono (T32): texto visible para cada error real de SpeechRecognition y para el estado ---- */
+function textoErrorMic(code,ios){
+  const M={"not-allowed":"Micrófono bloqueado (not-allowed): permítelo en los ajustes del navegador para esta web.",
+    "service-not-allowed":"Reconocimiento no permitido (service-not-allowed): actívalo en los ajustes del navegador o usa el micro del teclado.",
+    "network":"Sin conexión con el servicio de voz (network): el reconocimiento necesita internet. Revisa la red y repite.",
+    "audio-capture":"No llega audio del micrófono (audio-capture): otra app lo está usando. Ciérrala y pulsa 🔄 Reiniciar micrófono.",
+    "no-speech":"No te he oído (no-speech). Pulsa 🎤 y habla cerca del móvil.",
+    "aborted":"El reconocimiento se cortó (aborted). Pulsa 🎤 otra vez o 🔄 Reiniciar micrófono.",
+    "language-not-supported":"Este navegador no reconoce inglés (language-not-supported).",
+    "sin-arranque":"El micrófono no arranca. Pulsa 🔄 Reiniciar micrófono; si sigue, recarga la página.",
+    "sin-cierre":"El micrófono no se cerraba: lo he reiniciado. Pulsa 🎤 otra vez."};
+  const t=M[code]||("Error del micrófono: "+(code||"desconocido"));
+  return ios&&code!=="no-speech"?t+" En iPhone, Siri y Dictado deben estar activados (Ajustes → Siri · Ajustes → General → Teclado → Dictado).":t;
+}
+function textoEstadoMic(est,det){
+  return est==="escuchando"?"🎙️ Micrófono: escuchando"+(det?" · "+det:""):est==="error"?"⚠️ Micrófono: error ("+(det||"?")+")":"⏹ Micrófono: parado"+(det?" · "+det:"");
+}
+/* T34: qué hacer cuando el reconocedor termina. En iOS, stop() suele acabar en 'aborted' sin resultado final:
+   se usa el último parcial. Sin texto en iOS: botón «Toca para reintentar» (dentro del gesto) y plan B tras 2 fallos. */
+function planFinMic(o){
+  const fin=(o.finalTxt||"").trim(), par=(o.parcial||"").trim();
+  const texto=fin||par, origen=fin?"final":par?"parcial":"";
+  const fallos=texto?0:(o.fallos||0)+1;
+  let aviso="";
+  if(!texto){
+    if(o.ios&&!o.voz&&(!o.error||o.error==="aborted"||o.error==="no-speech")) aviso="El iPhone no detectó voz (no llegó onspeechstart ni ningún resultado)"+(o.error?" · "+o.error:"")+". Toca para reintentar, habla justo después y deja que termine sola al callar.";
+    else if(o.ios&&o.error==="aborted") aviso="El iPhone cortó la escucha sin texto (aborted). Toca para reintentar y deja que termine sola al callar.";
+  }
+  return {texto,origen,fallos,aviso,reintentar:!texto&&!!o.ios,planB:!texto&&!!o.ios&&fallos>=2};
+}
+/* T35: antes de escuchar. En iOS la voz (speechSynthesis) deja la sesión de audio en modo reproducción y el micro
+   graba silencio. Solo se llama a cancel() si la voz suena de verdad (v3.2-v3.3 lo hacían SIEMPRE justo antes de start()). */
+function planAntesDeEscuchar(o){
+  const suena=!!(o.speaking||o.pending), reciente=o.msDesdeTts!=null&&o.msDesdeTts<300;
+  return {cancelar:suena, sesion:o.ios&&o.hayAudioSession?"play-and-record":"", riesgo:!!o.ios&&(suena||reciente)};
+}
+/* T35: UN solo gestor de reconocedores. nuevo() suelta (handlers a null + abort) todos los vivos antes de crear otro;
+   cuenta creados y vivos para el panel 🩺. */
+function crearGestorRec(){
+  const vivos=new Set(); let creados=0;
+  const anular=r=>{ try{ r.onstart=r.onaudiostart=r.onspeechstart=r.onspeechend=r.onaudioend=r.onend=r.onresult=r.onerror=null; r.abort(); }catch(e){} };
+  const g={
+    nuevo(SR){ g.soltarTodos(); const r=new SR(); creados++; vivos.add(r); return r; },
+    soltar(r){ if(r&&vivos.delete(r)) anular(r); },
+    soltarTodos(){ for(const r of [...vivos]) g.soltar(r); },
+    terminado(r){ vivos.delete(r); },
+    get creados(){ return creados; }, get vivos(){ return vivos.size; } };
+  return g;
+}
+/* ---- T36: bug de WebKit en iOS — SpeechRecognition solo recibe audio en el 1.er start() de cada carga ---- */
+/* iOS = cualquier navegador de iPhone/iPad (Safari, Chrome CriOS, Firefox FxiOS, Edge EdgiOS: todos usan WebKit)
+   o iPad que se presenta como Mac (MacIntel + pantalla táctil). ?ios=1 lo fuerza para probar en Android/PC. */
+function esIOS(ua,plataforma,toques,busqueda){
+  if(/[?&]ios=1(&|$)/.test(busqueda||"")) return {ios:true,motivo:"forzado ?ios=1"};
+  const m=(ua||"").match(/iPhone|iPad|iPod/i); if(m) return {ios:true,motivo:"userAgent "+m[0]};
+  if(plataforma==="MacIntel"&&(toques||0)>1) return {ios:true,motivo:"iPad como Mac (MacIntel + táctil)"};
+  return {ios:false,motivo:"no iOS"};
+}
+function uaCorto(ua){ ua=ua||"";
+  const d=(ua.match(/iPhone|iPad|iPod/)||ua.match(/Android [\d.]+/)||ua.match(/Macintosh|Windows|Linux/)||["?"])[0];
+  const o=ua.match(/OS (\d+)[_.](\d+)/), n=ua.match(/(CriOS|FxiOS|EdgiOS|EdgA|Edg|Chrome|Firefox)\/(\d+)/), s=ua.match(/Version\/(\d+).*Safari/);
+  return d+(o&&/^iP/.test(d)?" iOS "+o[1]+"."+o[2]:"")+" · "+(n?n[1]+" "+n[2]:s?"Safari "+s[1]:"otro"); }
+/* Variante del micro en iOS: A = iframe por intento · B = sesión continua · C = recarga tras cada intento · BASE = v3.4 */
+function elegirVariante(defecto,busqueda){ const m=/[?&]var=(a|b|c|base)(&|$)/i.exec(busqueda||""); return m?m[1].toUpperCase():defecto; }
+/* D (T36): tope duro de escucha en iOS; al llegar se corta y se procesa el último parcial. ?tope=ms lo cambia para probar */
+const TOPE_FRASE_MS=7000, TOPE_ENTREVISTA_MS=120000, TOPE_RECARGAS_SIN_AUDIO=2;
+function topeMs(modo,busqueda){ const m=/[?&]tope=(\d+)/.exec(busqueda||""); return m?+m[1]:(modo==="entrevista"?TOPE_ENTREVISTA_MS:TOPE_FRASE_MS); }
+/* Variante B: texto de la frase actual dentro de la sesión continua. base={n: nº de resultados, txt: texto} al pulsar 🎤.
+   1) por desfase del texto (si el texto anterior sigue igual) · 2) por índice de resultado · 3) por longitud */
+function textoTurno(lista,base){ const j=a=>a.join(" ").replace(/\s+/g," ").trim(), todo=j(lista);
+  if(!base||!base.txt) return todo;
+  if(todo.startsWith(base.txt)) return todo.slice(base.txt.length).trim();
+  if(lista.length>base.n) return j(lista.slice(base.n));
+  return todo.slice(Math.min(base.txt.length,todo.length)).trim(); }
+/* Variante C: tras cada intento en iOS se recarga la página (el 1.er start() de cada carga sí recibe audio).
+   Anti-bucle: solo tras un intento que arrancó con un toque; sin audio más de TOPE veces seguidas o ≥5 recargas en 20 s → no recarga */
+function planRecargaC(o){
+  if(!o.ios||o.variante!=="C"||!o.arrancado) return {recargar:false,sinAudio:o.sinAudio||0,motivo:"no aplica"};
+  const sin=o.texto?0:(o.sinAudio||0)+1;
+  if(sin>o.tope) return {recargar:false,sinAudio:sin,motivo:"tope: "+o.tope+" recargas seguidas sin audio → plan B"};
+  if((o.recientes||0)>=5) return {recargar:false,sinAudio:sin,motivo:"tope: 5 recargas en 20 s"};
+  return {recargar:true,sinAudio:sin,motivo:o.texto?"intento hecho":"sin audio ("+sin+"/"+o.tope+")"};
+}
+/*FIN_PURAS*/
+
+/* ===================== UTILIDADES ===================== */
+const $ = id => document.getElementById(id);
+let voces=[];
+function cargarVoces(){ try{ voces=speechSynthesis.getVoices()||[]; }catch(e){} }
+try{ cargarVoces(); speechSynthesis.addEventListener?speechSynthesis.addEventListener("voiceschanged",cargarVoces):(speechSynthesis.onvoiceschanged=cargarVoces); }catch(e){}
+let ttsVivas=[];   // referencia a las locuciones: Chrome las pierde (GC) y se corta el audio
+let ttsCap=null;
+async function hablar(texto, rate=1){
+  try{
+    if("speechSynthesis" in window){
+      hablarSeq([{t:texto,r:rate}]); return;
+    }
+  }catch(e){}
+  
+}
+/* Varias locuciones seguidas: [{t, r, el}] — el = elemento que se resalta mientras suena (shadowing) */
+let ttsUltima=0, ttsN=0;   // T35: cuándo sonó la voz por última vez y cuántas veces (para el panel 🩺)
+const micOcupado=()=>!!(window.__micOcupado&&window.__micOcupado());
+function hablarSeq(partes){
+  try{
+    if(micOcupado()){ if(window.__diag) window.__diag("voz bloqueada","el micro está escuchando"); return; }   // T35: nada suena mientras se escucha
+    ttsUltima=performance.now(); ttsN++;
+    document.querySelectorAll(".playing").forEach(x=>x.classList.remove("playing"));
+    if(!voces.length) cargarVoces();
+    const ps=partes.map(p=>({t:p.t,r:p.r,
+      alEmpezar:p.el?()=>{ document.querySelectorAll(".playing").forEach(x=>x.classList.remove("playing")); p.el.classList.add("playing"); }:null,
+      alAcabar:p.el?()=>p.el.classList.remove("playing"):null}));
+    ttsVivas=decirCon(window.speechSynthesis,window.SpeechSynthesisUtterance,ps,elegirVoz(voces),(f,ms)=>setTimeout(()=>{ if(!micOcupado()) f(); },ms));   // T35: el reintento de voz no suena si ya se escucha
+  }catch(e){}
+}
+function pintarMic(est,det){ document.querySelectorAll(".micEst").forEach(x=>{ x.textContent=textoEstadoMic(est,det); x.dataset.est=est; }); }
+function callar(){ try{ speechSynthesis.cancel(); }catch(e){} document.querySelectorAll(".playing").forEach(x=>x.classList.remove("playing")); }
+function esc(s){return String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;"}[c]));}
+
+/* ===================== ALMACÉN DE PROGRESO ===================== */
+function nombreCat(k){
+  if(CAT[k]) return CAT[k].n;
+  if(k==="entrevista_libre") return "Respuesta libre (fluidez)";
+  if(k&&k.startsWith("entrevista_")) return "🎤 Entrevista · "+(FAM[k.slice(11)]||k.slice(11));
+  if(k==="hueco") return "🧩 Rellena el hueco";
+  return k;
+}
+let db=null, uid=null, intentos=[];
+function lsGet(){ try{ return JSON.parse(localStorage.getItem("sc_intentos")||"[]"); }catch(e){ return []; } }
+function lsSet(a){ try{ localStorage.setItem("sc_intentos",JSON.stringify(a.slice(-500))); }catch(e){} }
+async function guardar(reg){ if(window.__sinGuardar) return; intentos.push(reg); lsSet(intentos); pintarProgreso(); }
+async function cargarProgreso(){ intentos=lsGet(); $("pNota").textContent="Tu progreso se guarda en este móvil."; pintarProgreso(); }
+function pintarProgreso(){
+  const a=intentos; $("pN").textContent=a.length;
+  $("pMed").textContent=a.length?Math.round(a.reduce((x,r)=>x+(r.score||0),0)/a.length)+"%":"–";
+  $("pDias").textContent=new Set(a.map(r=>String(r.ts).slice(0,10))).size;
+  const g={}; for(const r of a){ const k=r.cat||r.modo; (g[k]??=[]).push(r.score||0); }
+  const filas=Object.entries(g).sort((x,y)=>(x[1].reduce((s,v)=>s+v,0)/x[1].length)-(y[1].reduce((s,v)=>s+v,0)/y[1].length));
+  $("pTabla").innerHTML=filas.length?filas.map(([k,v])=>{const m=Math.round(v.reduce((s,x)=>s+x,0)/v.length);
+    return `<tr><td>${esc(nombreCat(k))}<div class="bar"><i style="width:${m}%"></i></div></td><td>${v.length}</td><td class="n">${m}%</td></tr>`;}).join("")
+    :`<tr><td colspan="3" class="note">Aún no hay intentos. Practica una frase en «Frases» y aparecerá aquí, ordenado de peor a mejor.</td></tr>`;
+  const fl=contarFallos(a,12);
+  $("pFallos").innerHTML=fl.length?fl.map(x=>`<button type="button" data-w="${esc(x.w)}">${esc(x.w)}<i>×${x.n}</i></button>`).join("")
+    :`<span class="note">Aún no hay palabras falladas guardadas (se guardan desde esta versión).</span>`;
+}
+
+/* ===================== FRASES ===================== */
+let lista=[], idx=0, actual=null;
+function construirSelector(){
+  const opts=[`<option value="repaso">🔁 Repasar mis fallos</option>`];
+  opts.push(`<optgroup label="Tu perfil">`);
+  for(const [k,t] of Object.entries(TEMAS)) opts.push(`<option value="t:${k}">${esc(t.n)}</option>`);
+  opts.push(`</optgroup><optgroup label="🎤 Frases clave de entrevista">`);
+  for(const [k,n] of Object.entries(FAM)){ const nf=ENT.filter(q=>q.f===k).reduce((s,q)=>s+q.m.length,0); opts.push(`<option value="k:${k}">🎤 Frases clave · ${esc(n)} (${nf})</option>`); }
+  opts.push(`</optgroup><optgroup label="🧩 Rellena el hueco (vocabulario técnico)">`);
+  for(const [k,n] of Object.entries(FAM)){ const nh=ENT.filter(q=>q.f===k).flatMap(q=>q.m).filter(hacerHueco).length; opts.push(`<option value="h:${k}">🧩 Rellena el hueco · ${esc(n)} (${nh})</option>`); }
+  opts.push(`</optgroup><optgroup label="Sonidos difíciles">`);
+  opts.push(`<option value="todo">🔀 Todas las categorías mezcladas</option>`);
+  for(const [k,c] of Object.entries(CAT)) opts.push(`<option value="c:${k}">${esc(c.n)}</option>`);
+  opts.push(`</optgroup>`);
+  $("selSet").innerHTML=opts.join("");
+  $("selSet").value="t:entrevista";
+}
+function cargarLista(){
+  const v=$("selSet").value;
+  if(v==="repaso") lista=contarFallos(intentos,20).map(x=>({txt:x.w,cat:x.cat,repaso:true,n:x.n}));
+  else if(v.startsWith("t:")) lista=TEMAS[v.slice(2)].f.map(([txt,cat])=>({txt,cat}));
+  else if(v.startsWith("k:")) lista=ENT.filter(q=>q.f===v.slice(2)).flatMap(q=>q.m).map(txt=>({txt,cat:catDeFrase(txt)}));
+  else if(v.startsWith("h:")) lista=ENT.filter(q=>q.f===v.slice(2)).flatMap(q=>q.m).map(hacerHueco).filter(Boolean).map(h=>({...h,cat:catDePalabra(h.palabra)||"acento",hueco:true})).sort(()=>Math.random()-.5);
+  else if(v==="todo") lista=Object.entries(CAT).flatMap(([k,c])=>c.f.map(txt=>({txt,cat:k}))).sort(()=>Math.random()-.5);
+  else { const k=v.slice(2); lista=CAT[k].f.map(txt=>({txt,cat:k})).concat(CAT[k].p.slice(0,4).map(p=>({txt:p.replace("-"," · "),cat:k,par:true}))); }
+  idx=0; mostrar();
+}
+function textoAudio(a){ return a.hueco?a.full:a.txt.replace(" · ",". "); }
+function mostrar(){
+  $("txt").value=""; $("live").textContent=""; $("res").classList.add("hidden"); $("wPanel").classList.add("hidden");
+  if(!lista.length){ actual=null;
+    $("target").textContent="Aún no hay fallos guardados.";
+    $("meta").innerHTML=`<span class="chip">Practica frases: cada palabra en rojo se añade aquí para repasarla</span>`; return; }
+  actual=lista[idx%lista.length]; const c=CAT[actual.cat]||CAT.acento;
+  $("target").textContent=actual.txt;
+  const extra=actual.hueco?`<span class="chip">🧩 Escucha y di la palabra que falta</span>`:actual.repaso?`<span class="chip">🔁 fallada ×${actual.n}</span>`:"";
+  $("meta").innerHTML=`${extra}<span class="chip">${esc(c.n)}</span><span class="chip">${idx%lista.length+1}/${lista.length}</span>`;
+}
+function botonPalabra(w,cls,extra){ return `<button type="button" class="w ${cls}" data-w="${esc(w)}" aria-label="Escuchar ${esc(w)}">${extra||esc(w)}</button>`; }
+function comprobar(){
+  if(!actual){ $("live").textContent="No hay nada que comprobar en esta lista."; return; }
+  const dicho=$("txt").value.trim(); if(!dicho){ $("live").textContent="Primero di la frase (🎤) o escríbela con el dictado del teclado."; return; }
+  $("wPanel").classList.add("hidden");
+  if(actual.hueco){                                   // ---- Rellena el hueco
+    const ok=aciertaHueco(dicho,actual.palabra), pct=ok?100:0;
+    $("pct").textContent=ok?"✅":"❌";
+    $("pctTxt").textContent=ok?"¡Correcto!":"Era otra palabra. Escúchala y repítela.";
+    $("words").innerHTML=ok?`<span class="w ok">${esc(actual.palabra)}</span>`:botonPalabra(actual.palabra,"bad");
+    $("tips").innerHTML=`<div class="tip">${esc(actual.full)}</div>`+(ok?"":`<p class="note">Se ha entendido: «${esc(dicho)}»</p>`);
+    $("res").classList.remove("hidden");
+    guardar({ts:new Date().toISOString(),modo:"hueco",cat:"hueco",ref:actual.palabra,score:pct,fallos:ok?[]:[actual.palabra]});
+    return;
+  }
+  const t=norm(actual.txt.replace(" · "," ")), s=norm(dicho), al=lcsAlign(t,s);
+  const ok=al.filter(x=>x.tipo==="ok").length, pct=Math.round(100*ok/Math.max(1,t.length));
+  $("pct").textContent=pct+"%";
+  $("pctTxt").textContent=pct>=90?"¡Muy bien! Se te ha entendido todo.":pct>=70?"Casi: revisa las palabras en rojo.":"Repite despacio, primero escuchando el modelo.";
+  $("words").innerHTML=al.map(x=>x.tipo==="ok"?`<span class="w ok">${esc(x.t)}</span>`:x.tipo==="sub"?botonPalabra(x.t,"bad",`${esc(x.t)} → ${esc(x.s)}`):botonPalabra(x.t,"miss")).join("");
+  $("wAyuda").classList.toggle("hidden",pct>=100);
+  const tips=new Set();
+  for(const x of al){
+    if(x.tipo==="sub"&&PAIRS[x.t]&&PAIRS[x.t][x.s]){ const k=PAIRS[x.t][x.s]; tips.add(`<div class="tip">Dijiste <b>${esc(x.s)}</b> en vez de <b>${esc(x.t)}</b> · ${esc(CAT[k].n)}<br>${esc(CAT[k].c)}</div>`); }
+  }
+  const cf=CAT[actual.cat]||CAT.acento;
+  if(pct<90) tips.add(`<div class="tip"><b>Foco de esta frase:</b> ${esc(cf.n)}<br>${esc(cf.c)}</div>`);
+  $("tips").innerHTML=[...tips].join("")+`<p class="note">El reconocedor "corrige" hacia palabras reales: si una palabra sale bien pero dudas, escucha el modelo en 🐢 Lento y repite.</p>`;
+  $("res").classList.remove("hidden");
+  const fallos=[...new Set(al.filter(x=>x.tipo!=="ok").map(x=>x.t))];
+  guardar({ts:new Date().toISOString(),modo:actual.repaso?"repaso":"frase",cat:actual.cat,ref:actual.txt,score:pct,fallos});
+}
+/* Panel de una palabra fallada: suena normal y lenta, consejo de su categoría y par mínimo si lo hay */
+function abrirPalabra(w){
+  const fr=actual&&!actual.hueco&&!actual.repaso?actual.cat:null;
+  const k=catDePalabra(w)||fr||"acento", c=CAT[k];
+  const par=PAIRS[w]?Object.keys(PAIRS[w])[0]:null;
+  hablarSeq([{t:w,r:1},{t:w,r:.55}]);
+  $("wPanel").innerHTML=`<div class="big">🔊 ${esc(w)}</div>
+    <div class="row"><button class="btn sm" type="button" data-say="${esc(w)}" data-r="1">🔊 Otra vez</button><button class="btn sm" type="button" data-say="${esc(w)}" data-r=".55">🐢 Lenta</button></div>
+    ${par?`<div><b>Par mínimo:</b> ${esc(w)} ≠ ${esc(par)}</div><div class="row"><button class="btn sm" type="button" data-say="${esc(w)}" data-r=".8">🔊 ${esc(w)}</button><button class="btn sm" type="button" data-say="${esc(par)}" data-r=".8">🔊 ${esc(par)}</button><button class="btn sm" type="button" data-par="${esc(w)}|${esc(par)}">🔁 Las dos</button></div>`:""}
+    <div class="note"><b>${esc(c.n)}</b> — ${esc(c.c)}</div>
+    <div class="note">➕ Queda guardada para «🔁 Repasar mis fallos».</div>`;
+  $("wPanel").classList.remove("hidden");
+}
+function irARepaso(){
+  pararMic();
+  document.querySelector('.tabs button[data-v="frases"]').click();
+  $("selSet").value="repaso"; cargarLista();
+}
+
+/* ===================== ENTREVISTA ===================== */
+let t0=null, t1=null;
+function construirPreguntas(){
+  const fam=$("selFam").value;
+  const prop=ENT.map((q,i)=>[q,i]).filter(([q])=>q.f===fam), com=ENT.map((q,i)=>[q,i]).filter(([q])=>q.f==="comun");
+  const op=([q,i])=>`<option value="${i}">${esc(q.q)}${q.e==="cdt"?" · 🧩 diseño":""}</option>`;
+  $("selQ").innerHTML=`<optgroup label="${esc(FAM[fam])} (${prop.length})">${prop.map(op).join("")}</optgroup><optgroup label="Comunes a los tres (${com.length})">${com.map(op).join("")}</optgroup>`;
+  $("vocab").innerHTML=VOCAB.map(([w,h])=>`<button type="button" data-w="${esc(w)}">${esc(w)}<i>${esc(h)}</i></button>`).join("");
+}
+function preguntaActual(){ return ENT[+$("selQ").value]; }
+function mostrarPregunta(){
+  const p=preguntaActual(), e=ESTR[p.e];
+  $("qText").textContent=p.q; $("qHint").textContent="💡 "+p.h;
+  $("qMeta").innerHTML=`<span class="chip">${esc(FAM[p.f])}</span><span class="chip">${esc(e.n)}</span><span class="chip">${p.p.length} puntos clave</span>`;
+  $("gBody").innerHTML=`<div><p class="lbl" style="margin:0 0 6px">Estructura · ${esc(e.n)}</p><ol>${e.d.map(x=>`<li>${esc(x)}</li>`).join("")}</ol></div>
+    <div><p class="lbl" style="margin:0 0 6px">Puntos clave (se corrigen solos por estas palabras)</p><ul>${p.p.map(([l,k])=>`<li>${esc(l)}<br>${k.split("|").slice(0,5).map(x=>`<span class="kw">${esc(x)}</span>`).join("")}</li>`).join("")}</ul></div>
+    <div><p class="lbl" style="margin:0 0 6px">Respuesta modelo · toca 🔊 en cada frase y repítela (shadowing)</p>
+    <div class="row" style="margin-bottom:6px"><button class="btn sm" type="button" id="bMTodo">▶ Toda</button><button class="btn sm" type="button" id="bMLento">🐢 Toda lenta</button><button class="btn sm" type="button" id="bMStop">⏹ Parar</button></div>
+    <ul class="sent" id="mSent">${p.m.map((s,i)=>`<li><button type="button" data-i="${i}" aria-label="Escuchar frase ${i+1}">🔊</button><span>${esc(s)}</span></li>`).join("")}</ul>
+    <p class="note">${p.m.join(" ").split(/\s+/).length} palabras ≈ ${Math.round(p.m.join(" ").split(/\s+/).length/120*60)} s a ~120 palabras/min.</p></div>`;
+  $("txt2").value=""; $("res2").classList.add("hidden"); t0=t1=null;
+}
+function leerModelo(rate){ const lis=[...document.querySelectorAll("#mSent li")]; hablarSeq(preguntaActual().m.map((t,i)=>({t,r:rate,el:lis[i]}))); }
+function analizar(){
+  const txt=$("txt2").value.trim(); if(!txt){ $("live2").textContent="Responde primero (🎤) o pega tu respuesta."; return; }
+  const q=preguntaActual();
+  const low=" "+txt.toLowerCase().replace(/[^a-z' ]/g," ").replace(/\s+/g," ")+" ";
+  const palabras=norm(txt); const n=palabras.length;
+  const {fill,fdet}=contarMuletillas(txt);
+  const seg=(t0&&t1)?(t1-t0)/1000:null; const wpm=seg&&seg>5?Math.round(n/(seg/60)):null;
+  const cob=cobertura(txt,q.p), flu=puntFluidez(fill,wpm,n), nota=notaEntrevista(cob.pct,flu);
+  $("kWpm").textContent=wpm??"–"; $("kFill").textContent=fill; $("kWords").textContent=n;
+  $("kCov").textContent=`${cob.n}/${q.p.length}`; $("kFlu").textContent=flu+"%"; $("kNota").textContent=nota+"%";
+  $("covList").innerHTML=q.p.map(([l,k],i)=>`<li class="${cob.cub[i]?"si":""}">${cob.cub[i]?"✅":"⬜"} ${esc(l)}${cob.cub[i]?"":`<small>Para cubrirlo usa, p. ej.: ${esc(k.split("|").slice(0,3).join(" · "))}</small>`}</li>`).join("");
+  const rep={}; for(const w of palabras) if(w.length>3) rep[w]=(rep[w]||0)+1;
+  const top=Object.entries(rep).filter(([,c])=>c>=3).sort((a,b)=>b[1]-a[1]).slice(0,4);
+  const tips=[];
+  if(cob.pct<100) tips.push(cob.pct>=60?"📋 Buena base: abre 📋 Guion y añade los puntos ⬜ que faltan.":"📋 Te faltan varios puntos clave: escucha la respuesta modelo en 📋 Guion y vuelve a intentarlo siguiendo la estructura.");
+  else tips.push("✅ Has cubierto todos los puntos clave.");
+  if(cob.pct<COB_MIN) tips.push(`🎯 Casi no tocas los puntos de la pregunta (${cob.pct} %): la fluidez solo cuenta en proporción a lo que respondes.`);
+  if(wpm!==null) tips.push(wpm<110?"🐢 Vas algo lento: intenta enlazar palabras y reducir pausas.":wpm>170?"🐇 Vas rápido: baja el ritmo y marca las palabras clave.":"✅ Buen ritmo.");
+  else tips.push("⏱️ El ritmo se mide cuando respondes con 🎤 (no con texto pegado).");
+  tips.push(fill===0?"✅ Sin muletillas.":`🗣️ Muletillas: ${Object.entries(fdet).map(([f,c])=>`«${f}» ×${c}`).join(", ")}. Sustitúyelas por una pausa breve.`);
+  if(top.length) tips.push(`🔁 Repites mucho: ${top.map(([w,c])=>`«${w}» ×${c}`).join(", ")}. Busca sinónimos.`);
+  if(n<60) tips.push("📏 Respuesta corta: en entrevista apunta a 60-90 s (unas 120-200 palabras).");
+  if(q.e!=="preg"&&!/\d/.test(txt)&&!/(percent|hours|days|weeks|times|hundred|thousand|twenty|thirty|eighty|ninety)/i.test(txt)) tips.push("📈 Añade una cifra concreta (%, tiempo ahorrado, nº de tablas…): da credibilidad.");
+  const usadas=VOCAB.filter(([w])=>low.includes(" "+w.toLowerCase()+" ")).map(([w])=>w);
+  if(usadas.length) tips.push(`🎯 Palabras técnicas que has usado (repásalas abajo): ${usadas.join(", ")}.`);
+  $("tips2").innerHTML=tips.map(t=>`<div class="tip">${esc(t)}</div>`).join("");
+  $("res2").classList.remove("hidden");
+  guardar({ts:new Date().toISOString(),modo:"entrevista",cat:"entrevista_"+q.f,ref:q.q,score:nota,cobertura:cob.pct,fluidez:flu,wpm,fill,palabras:n});
+}
+
+/* ===================== DICTADO ===================== */
+let rec=null, destino=null, escuchando=false, vigiaFin=null, fallosSeguidos=0, diagT0=0;
+const GR=crearGestorRec();   // T35: gestor único de reconocedores (creados/vivos en el panel 🩺)
+window.__micOcupado=()=>rec!==null;   // T35: mientras haya reconocedor, la voz no suena
+const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+/* T36: iOS = iPhone/iPad/iPod en el userAgent (Safari, Chrome CriOS, Firefox, Edge: todos WebKit) o iPad como Mac; ?ios=1 lo fuerza */
+const IOS=esIOS(navigator.userAgent,navigator.platform,navigator.maxTouchPoints||0,location.search), ES_IOS=IOS.ios;
+const VARIANTE=elegirVariante("A",location.search);   // A iframe · B sesión continua · C recarga · BASE v3.4 (solo afecta a iOS)
+const NOMBRE_VAR={A:"A · iframe por intento",B:"B · sesión continua",C:"C · recarga tras cada intento",BASE:"base v3.4"};
+const ESPERA_PARAR_IOS = 1500;   // T34: en iOS, stop() inmediato descarta el audio → se espera 1,5 s (o resultado/onspeechend)
+function setRec(btn,on,txt){ btn.classList.toggle("on",on);
+  btn.textContent = txt || (on ? (ES_IOS?"⏹ Escuchando… termina sola al callar":"⏹ Parar") : (btn.id==="bHablar"?"🎤 Hablar":"🎤 Responder (habla 30-90 s)")); }
+/* Diagnóstico (?diag=1 o botón 🩺): eventos del reconocedor con ms desde que se pulsó 🎤 */
+function diag(ev,det){ const p=$("diagLog"); if(!p) return; const ms=diagT0?Math.round(performance.now()-diagT0):0;
+  p.textContent+=(ms+" ms").padStart(9)+"  "+ev+(det?"  "+det:"")+"\n"; p.scrollTop=p.scrollHeight; pintarContadores(); }
+window.__diag=diag;
+/* T35: contadores en el panel 🩺 → si alguno pasa de 1 hay reconocedores o listeners acumulados */
+function pintarContadores(){ const p=$("diagLog"); if(!p) return; let c=$("diagCnt");
+  if(!c){ c=document.createElement("p"); c.id="diagCnt"; c.className="note"; p.parentNode.insertBefore(c,p); }
+  c.textContent="🔢 reconocedores creados "+GR.creados+" · vivos "+GR.vivos+" · listeners de micro "+(window.__nListenersMic||0)+" · voz usada "+ttsN+"×"+" · iOS "+(ES_IOS?"sí":"no")+" · var "+VARIANTE+(VARIANTE==="A"?" · iframes "+GR_IFR.creados+"/"+GR_IFR.quitados+" quitados":VARIANTE==="B"?" · sesiones B "+SES.n+(SES.abierta?" (abierta)":""):"")+(navigator.audioSession?" · audioSession="+navigator.audioSession.type:" · sin audioSession"); }
+/* T35: antes de start(): cancel() SOLO si la voz suena; en iOS, sesión de audio play-and-record si existe la API */
+function prepararAudio(){ let ss=null; try{ ss=window.speechSynthesis; }catch(e){}
+  const msTts=ttsUltima?Math.round(performance.now()-ttsUltima):null;
+  const p=planAntesDeEscuchar({speaking:ss&&ss.speaking,pending:ss&&ss.pending,ios:ES_IOS,msDesdeTts:msTts,hayAudioSession:!!navigator.audioSession});
+  diag("voz antes de escuchar",(ttsN?"usada "+ttsN+"× · última hace "+msTts+" ms":"no usada")+(p.cancelar?" · SONANDO → cancel()":" · en silencio, sin cancel()"));
+  if(p.cancelar){ try{ ss.cancel(); }catch(e){} }
+  document.querySelectorAll(".playing").forEach(x=>x.classList.remove("playing"));
+  if(p.sesion){ try{ navigator.audioSession.type=p.sesion; diag("audioSession",navigator.audioSession.type); }catch(e){ diag("audioSession falló",String(e&&e.name)); } }
+  if(p.riesgo) diag("⚠️ voz reciente","en iOS puede dejar el micro en silencio"); }
+function soltarAudio(){ if(ES_IOS&&VARIANTE!=="B"&&navigator.audioSession){ try{ navigator.audioSession.type="auto"; }catch(e){} } }
+/* ===== T36 · variantes para el bug de WebKit en iOS (en una misma carga solo el 1.er start() recibe audio) ===== */
+function ssGet(k){ try{ return JSON.parse(sessionStorage.getItem(k)||"null"); }catch(e){ return null; } }
+function ssSet(k,v){ try{ sessionStorage.setItem(k,JSON.stringify(v)); }catch(e){} }
+function motorSR(){ if(!ES_IOS||VARIANTE==="BASE"||VARIANTE==="C") return SR; return VARIANTE==="A"?SRIframe:SRTurno; }
+/* ---- A · un iframe por intento. Opción elegida: iframe about:blank del mismo origen escrito con document.write
+   (síncrono, a diferencia de src=rec.html o srcdoc, que cargan en asíncrono y sacarían start() del gesto), allow="microphone";
+   el padre llama a su __iniciar() DENTRO del click → el SpeechRecognition es del documento del iframe. Eventos → postMessage.
+   Al terminar se elimina el iframe. Reserva: si iOS da not-allowed, «modo botón» (el 🎤 está dentro del iframe; ?iframeboton=1). */
+function recIframe(){   /* se ejecuta DENTRO del iframe (se serializa con toString: sin cierres) */
+  var ID=0, r=null, CFG=null;
+  function P(o){ o.__sc=1; o.id=ID; try{ parent.postMessage(o,"*"); }catch(e){} }
+  try{ if(parent.__mockIframe) parent.__mockIframe(window); }catch(e){}   /* solo en las pruebas headless */
+  var SRc=window.SpeechRecognition||window.webkitSpeechRecognition;
+  window.__iniciar=function(c){ c=c||CFG; ID=c.id; if(!SRc) throw new Error("sin SpeechRecognition en el iframe");
+    r=new SRc(); r.lang=c.lang; r.continuous=!!c.continuous; r.interimResults=!!c.interim; r.maxAlternatives=1;
+    ["onstart","onaudiostart","onspeechstart","onspeechend","onaudioend","onend"].forEach(function(n){ r[n]=function(){ P({ev:n}); }; });
+    r.onresult=function(e){ var a=[]; for(var i=0;i<e.results.length;i++) a.push([e.results[i][0].transcript,!!e.results[i].isFinal]); P({ev:"result",resultIndex:e.resultIndex,results:a}); };
+    r.onerror=function(e){ P({ev:"error",error:(e&&e.error)||"desconocido"}); };
+    r.start(); var b=document.getElementById("b"); if(b){ b.disabled=true; b.textContent="🎙️ Escuchando…"; } };
+  window.__preparar=function(c){ CFG=c; ID=c.id; };
+  window.__parar=function(){ try{ if(r) r.stop(); }catch(e){} };
+  window.__abortar=function(){ try{ if(r){ r.onend=r.onresult=r.onerror=null; r.abort(); } }catch(e){} };
+  document.addEventListener("click",function(e){ if(e.target&&e.target.id==="b"){ try{ window.__iniciar(); }catch(x){ P({ev:"error",error:"not-allowed"}); } } });
+}
+const IFR={}; let nIframe=0, A_BOTON=/[?&]iframeboton=1/.test(location.search)||ssGet("sc_a_boton")===1;
+function activarBotonA(motivo){ if(A_BOTON) return; A_BOTON=true; ssSet("sc_a_boton",1); diag("variante A → modo botón",motivo+" · el próximo 🎤 se toca dentro del recuadro"); }
+class SRIframe{
+  constructor(){ this.lang="en-US"; this.continuous=false; this.interimResults=true; this.maxAlternatives=1; this.id=++nIframe; this.fr=null; }
+  start(){ const fr=document.createElement("iframe"); fr.setAttribute("allow","microphone"); fr.setAttribute("title","micrófono");
+    const boton=A_BOTON&&this._lugar;
+    fr.style.cssText=boton?"display:block;width:100%;height:58px;border:0;margin:6px 0":"position:fixed;left:-20px;bottom:0;width:1px;height:1px;opacity:0;border:0";
+    if(boton) this._lugar.after(fr); else document.body.appendChild(fr);
+    this.fr=fr; IFR[this.id]=this; GR_IFR.creados++;
+    const d=fr.contentDocument; d.open();
+    d.write('<!doctype html><html><head><meta charset="utf-8"><style>body{margin:0;font:16px system-ui}button{width:100%;padding:15px;font-size:17px;border:0;border-radius:12px;background:#1f6feb;color:#fff}</style></head><body>'+(boton?'<button id="b" type="button">🎤 Toca aquí y habla</button>':'')+'<script>('+recIframe.toString()+')()<\/script></body></html>');
+    d.close();
+    const cfg={id:this.id,lang:this.lang,continuous:this.continuous,interim:this.interimResults};
+    diag("iframe n.º "+this.id,boton?"modo botón: toca 🎤 dentro del recuadro":"start() dentro del toque");
+    if(boton){ fr.contentWindow.__preparar(cfg); this._esperaToque=true; return; }
+    fr.contentWindow.__iniciar(cfg); }
+  stop(){ try{ if(this.fr) this.fr.contentWindow.__parar(); }catch(e){} }
+  abort(){ try{ if(this.fr) this.fr.contentWindow.__abortar(); }catch(e){} this._quitar(); }
+  _quitar(){ delete IFR[this.id]; if(this.fr){ this.fr.remove(); this.fr=null; GR_IFR.quitados++; } }
+}
+const GR_IFR={creados:0,quitados:0};
+window.addEventListener("message",e=>{ const m=e.data; if(!m||m.__sc!==1) return; const p=IFR[m.id];
+  if(!p||!p.fr||e.source!==p.fr.contentWindow) return;   // solo mensajes del iframe vivo de ese intento
+  if(m.ev==="result"){ p.onresult&&p.onresult({resultIndex:m.resultIndex,results:m.results.map(([t,f])=>Object.assign([{transcript:t}],{isFinal:f}))}); }
+  else if(m.ev==="error"){ p.onerror&&p.onerror({error:m.error}); }
+  else if(m.ev==="onend"){ const h=p.onend; p._quitar(); h&&h(); }
+  else { if(m.ev==="onstart") p._esperaToque=false; p[m.ev]&&p[m.ev](); } });
+/* ---- B · una sola sesión continua en iOS: se abre en el 1.er toque (continuous+interim) y no se para nunca.
+   Cada 🎤 es un «turno»: marca el inicio (nº de resultados y texto en ese momento) y el fin (silencio, Parar o tope). */
+const SES={rec:null,abierta:false,lista:[],turno:null,n:0};
+function abrirSesionB(){ const s=new SR(); SES.rec=s; SES.n++; SES.lista=[]; SES.abierta=false;
+  s.lang="en-US"; s.continuous=true; s.interimResults=true; s.maxAlternatives=1;
+  s.onstart=()=>{ SES.abierta=true; diag("sesión B abierta","n.º "+SES.n+" · continuous+interim"); if(SES.turno) SES.turno._arrancar(); };
+  s.onaudiostart=()=>diag("sesión B onaudiostart");
+  s.onspeechstart=()=>{ if(SES.turno) SES.turno._ev("onspeechstart"); };
+  s.onresult=e=>{ const l=[]; for(let i=0;i<e.results.length;i++) l.push(e.results[i][0].transcript); SES.lista=l; if(SES.turno) SES.turno._res(); };
+  s.onerror=e=>{ diag("sesión B onerror",e&&e.error); if(SES.turno) SES.turno._err(e); };
+  s.onend=()=>{ diag("sesión B cerrada por iOS","se reabre en el siguiente toque"); SES.rec=null; SES.abierta=false; if(SES.turno) SES.turno._cerrar(); };
+  s.start(); }
+class SRTurno{
+  constructor(){ this.lang="en-US"; this.continuous=false; this.interimResults=true; this.maxAlternatives=1; this._vivo=false; this._txt=""; }
+  start(){ SES.turno=this; this._vivo=true; this._base={n:SES.lista.length,txt:SES.lista.join(" ").replace(/\s+/g," ").trim()};
+    diag("turno B","desde resultado "+this._base.n+" · "+this._base.txt.length+" car previos");
+    if(!SES.rec) abrirSesionB(); else if(SES.abierta) setTimeout(()=>this._arrancar(),0); }
+  _arrancar(){ if(!this._vivo||this._ok) return; this._ok=true; this.onstart&&this.onstart(); this.onaudiostart&&this.onaudiostart(); }
+  _ev(n){ if(this._vivo&&this[n]) this[n](); }
+  _res(){ if(!this._vivo) return; const t=textoTurno(SES.lista,this._base); if(!t||t===this._txt) return; this._txt=t;
+    if(!this._voz){ this._voz=true; this._ev("onspeechstart"); }
+    this.onresult&&this.onresult({resultIndex:0,results:[Object.assign([{transcript:t}],{isFinal:false})]});
+    clearTimeout(this._sil); const ms=this._silMs||1500;
+    this._sil=setTimeout(()=>{ if(!this._vivo) return; diag("silencio (B)",ms+" ms sin texto nuevo → fin del turno"); this._ev("onspeechend"); this.stop(); },ms); }
+  _err(e){ if(this._vivo&&this.onerror) this.onerror(e); }
+  stop(){ if(this._vivo) setTimeout(()=>this._cerrar(),0); }   // NO para la sesión: solo cierra el turno
+  _cerrar(){ if(!this._vivo) return; this._vivo=false; clearTimeout(this._sil); if(SES.turno===this) SES.turno=null;
+    if(this._txt&&this.onresult) this.onresult({resultIndex:0,results:[Object.assign([{transcript:this._txt}],{isFinal:true})]});
+    this.onend&&this.onend(); }
+  abort(){ this._vivo=false; clearTimeout(this._sil); if(SES.turno===this) SES.turno=null; }
+}
+/* ---- C · reserva robusta: tras cada intento en iOS se guarda el estado en sessionStorage y se recarga sola;
+   la página nueva restaura frase, modo, intento, pantalla, resultado y panel 🩺, y queda lista para hablar con un toque. */
+function vistaActual(){ const b=document.querySelector('.tabs button[aria-selected="true"]'); return b?b.dataset.v:"frases"; }
+function estadoC(){ const vis=id=>$(id)&&!$(id).classList.contains("hidden");
+  return {v:vistaActual(),set:$("selSet").value,lista,idx,fam:$("selFam").value,q:$("selQ").value,
+    txt:$("txt").value,txt2:$("txt2").value,res:vis("res"),res2:vis("res2"),live:$("live").textContent,live2:$("live2").textContent,
+    reint:vis("bReint"),reint2:vis("bReint2"),t0,t1,fallos:fallosSeguidos,n:window._intentos||0,
+    diag:$("diagLog")?$("diagLog").textContent.slice(-8000):"",diagVis:vis("diagBox"),y:window.scrollY||0}; }
+function trasIntentoC(arrancado,area){
+  const ctl=ssGet("sc_c_ctl")||{sinAudio:0,ts:[]}, ahora=Date.now(); ctl.ts=(ctl.ts||[]).filter(t=>ahora-t<20000);
+  const p=planRecargaC({ios:ES_IOS,variante:VARIANTE,arrancado,texto:!!(area.value||"").trim(),sinAudio:ctl.sinAudio,tope:TOPE_RECARGAS_SIN_AUDIO,recientes:ctl.ts.length});
+  ctl.sinAudio=p.sinAudio; diag("variante C",p.motivo+(p.recargar?" → recarga":" → sin recarga"));
+  if(!p.recargar){ ssSet("sc_c_ctl",ctl); return; }
+  ctl.ts.push(ahora); ssSet("sc_c_ctl",ctl); ssSet("sc_c_estado",estadoC());
+  pintarMic("parado","recargando el micro…"); location.reload(); }
+function restaurarC(){ const e=ssGet("sc_c_estado"); if(!e) return false;
+  try{ sessionStorage.removeItem("sc_c_estado"); }catch(x){}
+  try{
+    if($("diagLog")&&e.diag) $("diagLog").textContent=e.diag+"——— ↻ recarga automática (variante C) ———\n";
+    if(e.diagVis) $("diagBox").classList.remove("hidden");
+    const tab=document.querySelector('.tabs button[data-v="'+e.v+'"]'); if(tab) tab.click();
+    $("selSet").value=e.set; if(e.lista&&e.lista.length){ lista=e.lista; idx=e.idx||0; mostrar(); } else cargarLista();
+    if(e.fam){ $("selFam").value=e.fam; construirPreguntas(); } if(e.q!=null) $("selQ").value=e.q; mostrarPregunta();
+    window._intentos=e.n||0; fallosSeguidos=e.fallos||0;
+    $("txt").value=e.txt||""; $("txt2").value=e.txt2||""; t0=e.t0; t1=e.t1;
+    window.__sinGuardar=true;   // el intento ya se guardó antes de recargar: solo se repinta
+    try{ if(e.res&&e.txt) comprobar(); if(e.res2&&e.txt2) analizar(); } finally{ window.__sinGuardar=false; }
+    const listo=" · 🔄 Micro listo: toca 🎤 y habla.";
+    $("live").textContent=(e.live||"")+(e.v==="frases"?listo:""); $("live2").textContent=(e.live2||"")+(e.v==="entrevista"?listo:"");
+    if(e.reint) $("bReint").classList.remove("hidden"); if(e.reint2) $("bReint2").classList.remove("hidden");
+    setTimeout(()=>window.scrollTo(0,e.y||0),0);
+    return true;
+  }catch(x){ diag("restaurar C falló",String(x&&x.message||x)); return false; } }
+
+function verReintento(btn,on){ const b=$(btn.id==="bHablar"?"bReint":"bReint2"); if(b) b.classList.toggle("hidden",!on); }
+/* T32: suelta el reconocedor actual SIN disparar sus eventos: nunca quedan dos abiertos ni uno colgado */
+function soltarRec(){ clearTimeout(vigiaFin); const r=rec; rec=null; escuchando=false;
+  if(r) clearTimeout(r._tParar);
+  GR.soltarTodos();   // T35: abort de TODOS los vivos (handlers a null antes), no solo del último
+  document.querySelectorAll("#bHablar,#bResp").forEach(b=>setRec(b,false)); }
+function pararMic(){ if(rec){ soltarRec(); diag("cerrado","cambio de modo"); pintarMic("parado","cerrado al cambiar de modo"); } }
+function reiniciarMic(){ soltarRec(); destino=null; fallosSeguidos=0; $("live").textContent=""; $("live2").textContent=""; ["bReint","bReint2"].forEach(id=>$(id)&&$(id).classList.add("hidden")); diag("reiniciar"); pintarMic("parado","reiniciado · pulsa 🎤 y habla"); }
+function planB(btn,live){   // iPhone sin texto tras 2 intentos: dictado del teclado
+  const area=btn.id==="bHablar"?$("txt"):$("txt2"), boton=btn.id==="bHablar"?$("bComp"):$("bAnal");
+  live.textContent=(live.textContent?live.textContent+" · ":"")+"📱 El micro de la página no está transcribiendo. Plan B: toca la caja de texto, usa el 🎤 del teclado del iPhone y pulsa «"+boton.textContent+"».";
+  boton.classList.add("destacar"); area.focus(); }
+function pulsarMic(btn,area,live){
+  if(!SR){ live.textContent="Este navegador no tiene reconocimiento de voz: usa Chrome (Android) o Safari (iPhone), o el micrófono del teclado."; pintarMic("error","sin SpeechRecognition"); area.focus(); return; }
+  if(escuchando&&rec&&destino&&destino.btn===btn){ rec._pedirParar("usuario"); return; }   // 2.º toque en el mismo botón = parar
+  diagT0=performance.now(); diag("— pulsar 🎤 —",(ES_IOS?"iOS":"no iOS")+" · "+btn.id);
+  arrancar(btn,area,live);
+}
+function arrancar(btn,area,live){
+  soltarRec();   // cualquier reconocedor anterior (otro botón, otro modo, colgado) se cierra y se crea uno NUEVO
+  prepararAudio();   // T35: cancel() solo si la voz suena (v3.2-v3.3 lo hacían SIEMPRE, justo antes de start())
+  verReintento(btn,false);
+  destino={btn,area,live}; area.value=""; if(btn.id==="bResp"){t0=Date.now();t1=null;}
+  const resBox = btn.id==="bHablar" ? $("res") : $("res2"); resBox.classList.add("hidden");   // borra el resultado anterior
+  window._intentos=(window._intentos||0)+1; const nIntento=window._intentos;
+  const r=GR.nuevo(motorSR()); rec=r; r._lugar=live; r._silMs=btn.id==="bResp"?3500:1500;   // T36: motor según variante (solo iOS)
+  r.lang="en-US"; r.maxAlternatives=1;
+  r.continuous = ES_IOS ? false : (btn.id==="bResp");       // iOS: nunca continuous
+  r.interimResults = true;                                  // T34: también en iOS, para guardar siempre el último parcial
+  let finalTxt="", ultimo="", vigia=null, error="", arrancado=false, voz=false, nRes=0, parando=false, cerrado=false;
+  const mio=()=>rec===r;
+  const hacerStop=motivo=>{ clearTimeout(r._tParar); if(r._stopHecho) return; r._stopHecho=true; try{ r.stop(); }catch(e){} diag("stop()",motivo);
+    clearTimeout(vigiaFin); vigiaFin=setTimeout(()=>{ if(rec===r){ diag("forzado","onend no llegó en 3 s"); GR.soltar(r); fin("forzado"); } },3000); };
+  r._pedirParar=motivo=>{
+    if(!ES_IOS){ hacerStop(motivo); return; }                    // Android/Chrome: igual que antes
+    if(parando) return; parando=true; setRec(btn,true,"⏳ Terminando…"); live.textContent="⏳ Terminando… (no cortes: espera a que procese)";
+    diag("parar pedido",motivo+" · stop() en "+ESPERA_PARAR_IOS+" ms o al llegar resultado/onspeechend");
+    r._tParar=setTimeout(()=>hacerStop("tras "+ESPERA_PARAR_IOS+" ms"),ESPERA_PARAR_IOS); };
+  r.onstart=()=>{ diag("onstart"); if(!mio()) return; arrancado=true;
+    if(ES_IOS&&VARIANTE!=="BASE"&&!r._tTope){ const tp=topeMs(btn.id==="bResp"?"entrevista":"frase",location.search);   // D (T36): tope duro
+      r._tTope=setTimeout(()=>{ if(rec===r){ diag("⏱️ tope duro",tp+" ms → corta y usa el parcial"); hacerStop("tope "+tp+" ms"); } },tp); } escuchando=true; setRec(btn,true); pintarMic("escuchando","intento "+nIntento); live.textContent="🎙️ Intento n.º "+nIntento+" · "+(ES_IOS?"escuchando… termina sola al callar":"escuchando…"); };
+  r.onaudiostart=()=>diag("onaudiostart");
+  r.onspeechstart=()=>{ voz=true; diag("onspeechstart"); };
+  r.onspeechend=()=>{ diag("onspeechend"); if(mio()&&parando) hacerStop("onspeechend"); };
+  r.onaudioend=()=>diag("onaudioend");
+  r.onresult=e=>{ if(!mio()) return; nRes++; let parcial="", hayFinal=false; for(let i=e.resultIndex;i<e.results.length;i++){ const x=e.results[i]; if(x.isFinal){ hayFinal=true; finalTxt+=(finalTxt?" ":"")+x[0].transcript.trim(); } else parcial+=x[0].transcript; }
+    if(parcial.trim()||hayFinal) ultimo=(finalTxt+" "+parcial).trim();   // el último parcial se guarda SIEMPRE
+    diag("onresult",(hayFinal?"isFinal=true":"isFinal=false")+" · "+ultimo.length+" car · "+JSON.stringify(ultimo)); area.value=ultimo; if(!parando) live.textContent="🎙️ Intento n.º "+nIntento+" · "+(parcial||ultimo||"…");
+    if(ES_IOS){ if(parando&&hayFinal) hacerStop("resultado final"); return; }   // iOS: sin vigía, termina sola
+    if(btn.id==="bHablar"){ clearTimeout(vigia); vigia=setTimeout(()=>hacerStop("1,8 s de silencio"),1800); } };
+  r.onerror=e=>{ error=(e&&e.error)||"desconocido"; diag("onerror",error); if(ES_IOS&&VARIANTE==="A"&&error==="not-allowed") activarBotonA(error); if(!mio()) return; escuchando=false; setRec(btn,false);
+    if(!(ES_IOS&&ultimo)){ live.textContent=textoErrorMic(error,ES_IOS); pintarMic("error",error); } };   // con parcial en iOS, decide onend
+  const fin=motivo=>{ if(cerrado) return; cerrado=true; clearTimeout(r._tTope);
+    if(ES_IOS&&VARIANTE==="C"){ const arr=arrancado; setTimeout(()=>trasIntentoC(arr,area),0); }   // T36: tras procesar, recarga
+    GR.terminado(r); soltarAudio(); clearTimeout(vigia); clearTimeout(vigiaFin); clearTimeout(r._tParar); if(!mio()) return; rec=null; escuchando=false; setRec(btn,false); if(btn.id==="bResp") t1=Date.now();
+    const p=planFinMic({ios:ES_IOS,finalTxt,parcial:ultimo,error,voz:voz||nRes>0,fallos:fallosSeguidos});
+    diag("fin",(p.origen||"sin texto")+" · onspeechstart "+(voz?"sí":"NO")+" · "+nRes+" onresult"+(error?" · "+error:"")+(motivo?" · "+motivo:""));
+    area.value=p.texto; fallosSeguidos=p.fallos;
+    if(p.texto){ $("bComp").classList.remove("destacar"); $("bAnal").classList.remove("destacar");
+      if(p.origen==="parcial") diag("⚠️ usa el último parcial","no llegó resultado final · "+p.texto.length+" car");
+      live.textContent="✅ Intento n.º "+nIntento+" corregido"+(p.origen==="parcial"?" (con el último parcial)":"")+(error&&p.origen!=="parcial"?" (aviso: "+error+")":"");
+      pintarMic("parado","intento "+nIntento+" corregido"+(p.origen==="parcial"?" · parcial":"")); (btn.id==="bHablar"?comprobar:analizar)(); return; }
+    if(ES_IOS&&!voz&&!nRes) diag("⚠️ sin audio detectado","no llegó onspeechstart ni onresult");
+    if(p.aviso){ live.textContent=p.aviso; pintarMic("error",error||"sin voz"); }
+    else if(error){ live.textContent=textoErrorMic(error,ES_IOS); pintarMic("error",error); }   // no se tapa el error real
+    else { live.textContent="No te he entendido: el micrófono se cerró sin texto. Pulsa 🎤 y repite."; pintarMic("parado","sin texto"); }
+    if(p.reintentar) verReintento(btn,true);   // T34: sin reintento automático (fuera del gesto daba not-allowed)
+    if(p.planB) planB(btn,live); };
+  r.onend=()=>{ diag("onend"); fin(""); };
+  try{ r.start(); diag("start()",(r.continuous?"continuous ":"")+(r.interimResults?"interim":"sin interim")); pintarMic("escuchando","arrancando…");
+    setTimeout(()=>{ if(rec===r&&!arrancado&&!r._esperaToque){ soltarRec(); diag("sin onstart","6 s"); live.textContent=textoErrorMic("sin-arranque",ES_IOS); pintarMic("error","sin-arranque"); if(ES_IOS) verReintento(btn,true); } },6000); }
+  catch(err){ soltarRec(); const n=(err&&err.name)||"start"; diag("start() falló",n); fallosSeguidos++; if(ES_IOS&&VARIANTE==="A"&&/NotAllowed/i.test(n)) activarBotonA(n); live.textContent="No se pudo iniciar el micrófono ("+n+"). Pulsa 🔄 Reiniciar micrófono."; pintarMic("error",n); if(ES_IOS){ verReintento(btn,true); if(fallosSeguidos>=2) planB(btn,live); } }
+}
+function iniciarCapacidades(){
+  $("estadoMic").textContent = SR ? "🎤 Micrófono del navegador · sin Claude"+(ES_IOS?" · iOS · variante "+NOMBRE_VAR[VARIANTE]:"") : "Sin reconocimiento de voz · usa el teclado";
+  pintarMic(SR?"parado":"error",SR?"":"sin SpeechRecognition");
+  if(/[?&]diag=1/.test(location.search)) $("diagBox").classList.remove("hidden");
+  /* T34: «Toca para reintentar» arranca DENTRO del gesto del usuario (el reintento automático podía dar not-allowed) */
+  window.__diagReintento=()=>{ diagT0=performance.now(); diag("— reintento (toque) —"); };   // T35: los clics van por la delegación única
+  const restaurado=ES_IOS&&VARIANTE==="C"&&restaurarC();   // T36: vuelve de una recarga automática con la frase y el resultado
+  diag("inicio","v3.5 · variante "+NOMBRE_VAR[VARIANTE]+(ES_IOS?"":" (no se usa: no es iOS)")+" · iOS: "+(ES_IOS?"sí":"no")+" ("+IOS.motivo+") · SR="+(SR?"sí":"no")+" · "+uaCorto(navigator.userAgent)+" · tope frase "+TOPE_FRASE_MS+" ms / entrevista "+TOPE_ENTREVISTA_MS+" ms"+(restaurado?" · ↻ estado restaurado":""));
+  diag("userAgent",navigator.userAgent);
+  cargarProgreso();
+}
+
+/* ===================== EVENTOS ===================== */
+document.querySelectorAll(".tabs button").forEach(b=>b.addEventListener("click",()=>{
+  callar(); pararMic();
+  document.querySelectorAll(".tabs button").forEach(x=>x.setAttribute("aria-selected",x===b?"true":"false"));
+  for(const v of ["frases","entrevista","progreso"]) $("v-"+v).classList.toggle("hidden",v!==b.dataset.v);
+  if(b.dataset.v==="progreso") pintarProgreso();
+}));
+$("selSet").addEventListener("change",()=>{ pararMic(); cargarLista(); });
+document.querySelectorAll(".reMic").forEach(b=>b.addEventListener("click",reiniciarMic));
+document.querySelectorAll(".diagBtn").forEach(b=>b.addEventListener("click",()=>{ const d=$("diagBox"); d.classList.toggle("hidden"); if(!d.classList.contains("hidden")) d.scrollIntoView({block:"nearest"}); }));
+$("bSig").addEventListener("click",()=>{pararMic();idx++;mostrar();});
+$("bEsc").addEventListener("click",()=>{ if(actual) hablar(textoAudio(actual),1); });
+$("bLento").addEventListener("click",()=>{ if(actual) hablar(textoAudio(actual),.65); });
+$("bComp").addEventListener("click",comprobar);
+/* T35: UN solo listener (delegación) para todos los botones de micro; se registra una vez aunque se repinte la pantalla */
+const MIC_BTN={bHablar:["bHablar","txt","live"],bResp:["bResp","txt2","live2"],bReint:["bHablar","txt","live"],bReint2:["bResp","txt2","live2"]};
+function enMicClick(e){ const b=e.target.closest&&e.target.closest("#bHablar,#bResp,#bReint,#bReint2"); if(!b) return; const [bt,ar,li]=MIC_BTN[b.id];
+  if(b.id.startsWith("bReint")&&window.__diagReintento) window.__diagReintento();
+  pulsarMic($(bt),$(ar),$(li)); }
+/* T35: si la voz suena, se corta YA en el touchstart/pointerdown; el start() sigue en el click (dentro del gesto) */
+function enMicToque(e){ const b=e.target.closest&&e.target.closest("#bHablar,#bResp,#bReint,#bReint2"); if(!b) return;
+  try{ const ss=window.speechSynthesis; if(ss&&(ss.speaking||ss.pending)){ ss.cancel(); if(window.__diag) window.__diag("voz cancelada","en el toque, antes del click"); } }catch(err){} }
+if(!window.__micDelegado){ window.__micDelegado=true; window.__nListenersMic=(window.__nListenersMic||0)+1;
+  document.addEventListener("click",enMicClick);
+  document.addEventListener(window.PointerEvent?"pointerdown":"touchstart",enMicToque,{passive:true}); }
+$("bRepaso").addEventListener("click",irARepaso);
+$("bRepaso2").addEventListener("click",irARepaso);
+$("words").addEventListener("click",e=>{const b=e.target.closest("button[data-w]"); if(b) abrirPalabra(b.dataset.w);});
+$("wPanel").addEventListener("click",e=>{const b=e.target.closest("button"); if(!b) return;
+  if(b.dataset.say) hablar(b.dataset.say,+b.dataset.r||1);
+  else if(b.dataset.par){ const [a,c]=b.dataset.par.split("|"); hablarSeq([{t:a,r:.8},{t:c,r:.8},{t:a,r:.8},{t:c,r:.8}]); }});
+$("pFallos").addEventListener("click",e=>{const b=e.target.closest("button[data-w]"); if(b) hablarSeq([{t:b.dataset.w,r:1},{t:b.dataset.w,r:.55}]);});
+$("selFam").addEventListener("change",()=>{ pararMic(); construirPreguntas(); mostrarPregunta(); });
+$("selQ").addEventListener("change",()=>{ callar(); pararMic(); mostrarPregunta(); });
+$("bQEsc").addEventListener("click",()=>hablar(preguntaActual().q,.95));
+$("gBody").addEventListener("click",e=>{const b=e.target.closest("button"); if(!b) return;
+  if(b.id==="bMTodo") leerModelo(.95); else if(b.id==="bMLento") leerModelo(.7); else if(b.id==="bMStop") callar();
+  else if(b.dataset.i!==undefined) hablarSeq([{t:preguntaActual().m[+b.dataset.i],r:.9,el:b.closest("li")}]); });
+$("bAnal").addEventListener("click",analizar);
+$("vocab").addEventListener("click",e=>{const b=e.target.closest("button[data-w]"); if(b) hablar(b.dataset.w,.8);});
+
+intentos=lsGet(); construirSelector(); cargarLista(); construirPreguntas(); mostrarPregunta(); pintarProgreso();
+iniciarCapacidades();
+</script>
+</body></html>

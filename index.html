@@ -567,6 +567,40 @@ function crearGestorRec(){
     get creados(){ return creados; }, get vivos(){ return vivos.size; } };
   return g;
 }
+/* ---- T36: bug de WebKit en iOS — SpeechRecognition solo recibe audio en el 1.er start() de cada carga ---- */
+/* iOS = cualquier navegador de iPhone/iPad (Safari, Chrome CriOS, Firefox FxiOS, Edge EdgiOS: todos usan WebKit)
+   o iPad que se presenta como Mac (MacIntel + pantalla táctil). ?ios=1 lo fuerza para probar en Android/PC. */
+function esIOS(ua,plataforma,toques,busqueda){
+  if(/[?&]ios=1(&|$)/.test(busqueda||"")) return {ios:true,motivo:"forzado ?ios=1"};
+  const m=(ua||"").match(/iPhone|iPad|iPod/i); if(m) return {ios:true,motivo:"userAgent "+m[0]};
+  if(plataforma==="MacIntel"&&(toques||0)>1) return {ios:true,motivo:"iPad como Mac (MacIntel + táctil)"};
+  return {ios:false,motivo:"no iOS"};
+}
+function uaCorto(ua){ ua=ua||"";
+  const d=(ua.match(/iPhone|iPad|iPod/)||ua.match(/Android [\d.]+/)||ua.match(/Macintosh|Windows|Linux/)||["?"])[0];
+  const o=ua.match(/OS (\d+)[_.](\d+)/), n=ua.match(/(CriOS|FxiOS|EdgiOS|EdgA|Edg|Chrome|Firefox)\/(\d+)/), s=ua.match(/Version\/(\d+).*Safari/);
+  return d+(o&&/^iP/.test(d)?" iOS "+o[1]+"."+o[2]:"")+" · "+(n?n[1]+" "+n[2]:s?"Safari "+s[1]:"otro"); }
+/* Variante del micro en iOS: A = iframe por intento · B = sesión continua · C = recarga tras cada intento · BASE = v3.4 */
+function elegirVariante(defecto,busqueda){ const m=/[?&]var=(a|b|c|base)(&|$)/i.exec(busqueda||""); return m?m[1].toUpperCase():defecto; }
+/* D (T36): tope duro de escucha en iOS; al llegar se corta y se procesa el último parcial. ?tope=ms lo cambia para probar */
+const TOPE_FRASE_MS=7000, TOPE_ENTREVISTA_MS=120000, TOPE_RECARGAS_SIN_AUDIO=2;
+function topeMs(modo,busqueda){ const m=/[?&]tope=(\d+)/.exec(busqueda||""); return m?+m[1]:(modo==="entrevista"?TOPE_ENTREVISTA_MS:TOPE_FRASE_MS); }
+/* Variante B: texto de la frase actual dentro de la sesión continua. base={n: nº de resultados, txt: texto} al pulsar 🎤.
+   1) por desfase del texto (si el texto anterior sigue igual) · 2) por índice de resultado · 3) por longitud */
+function textoTurno(lista,base){ const j=a=>a.join(" ").replace(/\s+/g," ").trim(), todo=j(lista);
+  if(!base||!base.txt) return todo;
+  if(todo.startsWith(base.txt)) return todo.slice(base.txt.length).trim();
+  if(lista.length>base.n) return j(lista.slice(base.n));
+  return todo.slice(Math.min(base.txt.length,todo.length)).trim(); }
+/* Variante C: tras cada intento en iOS se recarga la página (el 1.er start() de cada carga sí recibe audio).
+   Anti-bucle: solo tras un intento que arrancó con un toque; sin audio más de TOPE veces seguidas o ≥5 recargas en 20 s → no recarga */
+function planRecargaC(o){
+  if(!o.ios||o.variante!=="C"||!o.arrancado) return {recargar:false,sinAudio:o.sinAudio||0,motivo:"no aplica"};
+  const sin=o.texto?0:(o.sinAudio||0)+1;
+  if(sin>o.tope) return {recargar:false,sinAudio:sin,motivo:"tope: "+o.tope+" recargas seguidas sin audio → plan B"};
+  if((o.recientes||0)>=5) return {recargar:false,sinAudio:sin,motivo:"tope: 5 recargas en 20 s"};
+  return {recargar:true,sinAudio:sin,motivo:o.texto?"intento hecho":"sin audio ("+sin+"/"+o.tope+")"};
+}
 /*FIN_PURAS*/
 
 /* ===================== UTILIDADES ===================== */
@@ -614,7 +648,7 @@ function nombreCat(k){
 let db=null, uid=null, intentos=[];
 function lsGet(){ try{ return JSON.parse(localStorage.getItem("sc_intentos")||"[]"); }catch(e){ return []; } }
 function lsSet(a){ try{ localStorage.setItem("sc_intentos",JSON.stringify(a.slice(-500))); }catch(e){} }
-async function guardar(reg){ intentos.push(reg); lsSet(intentos); pintarProgreso(); }
+async function guardar(reg){ if(window.__sinGuardar) return; intentos.push(reg); lsSet(intentos); pintarProgreso(); }
 async function cargarProgreso(){ intentos=lsGet(); $("pNota").textContent="Tu progreso se guarda en este móvil."; pintarProgreso(); }
 function pintarProgreso(){
   const a=intentos; $("pN").textContent=a.length;
@@ -777,8 +811,10 @@ let rec=null, destino=null, escuchando=false, vigiaFin=null, fallosSeguidos=0, d
 const GR=crearGestorRec();   // T35: gestor único de reconocedores (creados/vivos en el panel 🩺)
 window.__micOcupado=()=>rec!==null;   // T35: mientras haya reconocedor, la voz no suena
 const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-/* iOS (incluido iPad que se presenta como Mac con pantalla táctil): webkitSpeechRecognition es inestable */
-const ES_IOS = /iPhone|iPad|iPod/i.test(navigator.userAgent) || (/Macintosh/.test(navigator.userAgent) && navigator.maxTouchPoints>1);
+/* T36: iOS = iPhone/iPad/iPod en el userAgent (Safari, Chrome CriOS, Firefox, Edge: todos WebKit) o iPad como Mac; ?ios=1 lo fuerza */
+const IOS=esIOS(navigator.userAgent,navigator.platform,navigator.maxTouchPoints||0,location.search), ES_IOS=IOS.ios;
+const VARIANTE=elegirVariante("C",location.search);   // A iframe · B sesión continua · C recarga · BASE v3.4 (solo afecta a iOS)
+const NOMBRE_VAR={A:"A · iframe por intento",B:"B · sesión continua",C:"C · recarga tras cada intento",BASE:"base v3.4"};
 const ESPERA_PARAR_IOS = 1500;   // T34: en iOS, stop() inmediato descarta el audio → se espera 1,5 s (o resultado/onspeechend)
 function setRec(btn,on,txt){ btn.classList.toggle("on",on);
   btn.textContent = txt || (on ? (ES_IOS?"⏹ Escuchando… termina sola al callar":"⏹ Parar") : (btn.id==="bHablar"?"🎤 Hablar":"🎤 Responder (habla 30-90 s)")); }
@@ -789,7 +825,7 @@ window.__diag=diag;
 /* T35: contadores en el panel 🩺 → si alguno pasa de 1 hay reconocedores o listeners acumulados */
 function pintarContadores(){ const p=$("diagLog"); if(!p) return; let c=$("diagCnt");
   if(!c){ c=document.createElement("p"); c.id="diagCnt"; c.className="note"; p.parentNode.insertBefore(c,p); }
-  c.textContent="🔢 reconocedores creados "+GR.creados+" · vivos "+GR.vivos+" · listeners de micro "+(window.__nListenersMic||0)+" · voz usada "+ttsN+"×"+(navigator.audioSession?" · audioSession="+navigator.audioSession.type:" · sin audioSession"); }
+  c.textContent="🔢 reconocedores creados "+GR.creados+" · vivos "+GR.vivos+" · listeners de micro "+(window.__nListenersMic||0)+" · voz usada "+ttsN+"×"+" · iOS "+(ES_IOS?"sí":"no")+" · var "+VARIANTE+(VARIANTE==="A"?" · iframes "+GR_IFR.creados+"/"+GR_IFR.quitados+" quitados":VARIANTE==="B"?" · sesiones B "+SES.n+(SES.abierta?" (abierta)":""):"")+(navigator.audioSession?" · audioSession="+navigator.audioSession.type:" · sin audioSession"); }
 /* T35: antes de start(): cancel() SOLO si la voz suena; en iOS, sesión de audio play-and-record si existe la API */
 function prepararAudio(){ let ss=null; try{ ss=window.speechSynthesis; }catch(e){}
   const msTts=ttsUltima?Math.round(performance.now()-ttsUltima):null;
@@ -799,7 +835,123 @@ function prepararAudio(){ let ss=null; try{ ss=window.speechSynthesis; }catch(e)
   document.querySelectorAll(".playing").forEach(x=>x.classList.remove("playing"));
   if(p.sesion){ try{ navigator.audioSession.type=p.sesion; diag("audioSession",navigator.audioSession.type); }catch(e){ diag("audioSession falló",String(e&&e.name)); } }
   if(p.riesgo) diag("⚠️ voz reciente","en iOS puede dejar el micro en silencio"); }
-function soltarAudio(){ if(ES_IOS&&navigator.audioSession){ try{ navigator.audioSession.type="auto"; }catch(e){} } }
+function soltarAudio(){ if(ES_IOS&&VARIANTE!=="B"&&navigator.audioSession){ try{ navigator.audioSession.type="auto"; }catch(e){} } }
+/* ===== T36 · variantes para el bug de WebKit en iOS (en una misma carga solo el 1.er start() recibe audio) ===== */
+function ssGet(k){ try{ return JSON.parse(sessionStorage.getItem(k)||"null"); }catch(e){ return null; } }
+function ssSet(k,v){ try{ sessionStorage.setItem(k,JSON.stringify(v)); }catch(e){} }
+function motorSR(){ if(!ES_IOS||VARIANTE==="BASE"||VARIANTE==="C") return SR; return VARIANTE==="A"?SRIframe:SRTurno; }
+/* ---- A · un iframe por intento. Opción elegida: iframe about:blank del mismo origen escrito con document.write
+   (síncrono, a diferencia de src=rec.html o srcdoc, que cargan en asíncrono y sacarían start() del gesto), allow="microphone";
+   el padre llama a su __iniciar() DENTRO del click → el SpeechRecognition es del documento del iframe. Eventos → postMessage.
+   Al terminar se elimina el iframe. Reserva: si iOS da not-allowed, «modo botón» (el 🎤 está dentro del iframe; ?iframeboton=1). */
+function recIframe(){   /* se ejecuta DENTRO del iframe (se serializa con toString: sin cierres) */
+  var ID=0, r=null, CFG=null;
+  function P(o){ o.__sc=1; o.id=ID; try{ parent.postMessage(o,"*"); }catch(e){} }
+  try{ if(parent.__mockIframe) parent.__mockIframe(window); }catch(e){}   /* solo en las pruebas headless */
+  var SRc=window.SpeechRecognition||window.webkitSpeechRecognition;
+  window.__iniciar=function(c){ c=c||CFG; ID=c.id; if(!SRc) throw new Error("sin SpeechRecognition en el iframe");
+    r=new SRc(); r.lang=c.lang; r.continuous=!!c.continuous; r.interimResults=!!c.interim; r.maxAlternatives=1;
+    ["onstart","onaudiostart","onspeechstart","onspeechend","onaudioend","onend"].forEach(function(n){ r[n]=function(){ P({ev:n}); }; });
+    r.onresult=function(e){ var a=[]; for(var i=0;i<e.results.length;i++) a.push([e.results[i][0].transcript,!!e.results[i].isFinal]); P({ev:"result",resultIndex:e.resultIndex,results:a}); };
+    r.onerror=function(e){ P({ev:"error",error:(e&&e.error)||"desconocido"}); };
+    r.start(); var b=document.getElementById("b"); if(b){ b.disabled=true; b.textContent="🎙️ Escuchando…"; } };
+  window.__preparar=function(c){ CFG=c; ID=c.id; };
+  window.__parar=function(){ try{ if(r) r.stop(); }catch(e){} };
+  window.__abortar=function(){ try{ if(r){ r.onend=r.onresult=r.onerror=null; r.abort(); } }catch(e){} };
+  document.addEventListener("click",function(e){ if(e.target&&e.target.id==="b"){ try{ window.__iniciar(); }catch(x){ P({ev:"error",error:"not-allowed"}); } } });
+}
+const IFR={}; let nIframe=0, A_BOTON=/[?&]iframeboton=1/.test(location.search)||ssGet("sc_a_boton")===1;
+function activarBotonA(motivo){ if(A_BOTON) return; A_BOTON=true; ssSet("sc_a_boton",1); diag("variante A → modo botón",motivo+" · el próximo 🎤 se toca dentro del recuadro"); }
+class SRIframe{
+  constructor(){ this.lang="en-US"; this.continuous=false; this.interimResults=true; this.maxAlternatives=1; this.id=++nIframe; this.fr=null; }
+  start(){ const fr=document.createElement("iframe"); fr.setAttribute("allow","microphone"); fr.setAttribute("title","micrófono");
+    const boton=A_BOTON&&this._lugar;
+    fr.style.cssText=boton?"display:block;width:100%;height:58px;border:0;margin:6px 0":"position:fixed;left:-20px;bottom:0;width:1px;height:1px;opacity:0;border:0";
+    if(boton) this._lugar.after(fr); else document.body.appendChild(fr);
+    this.fr=fr; IFR[this.id]=this; GR_IFR.creados++;
+    const d=fr.contentDocument; d.open();
+    d.write('<!doctype html><html><head><meta charset="utf-8"><style>body{margin:0;font:16px system-ui}button{width:100%;padding:15px;font-size:17px;border:0;border-radius:12px;background:#1f6feb;color:#fff}</style></head><body>'+(boton?'<button id="b" type="button">🎤 Toca aquí y habla</button>':'')+'<script>('+recIframe.toString()+')()<\/script></body></html>');
+    d.close();
+    const cfg={id:this.id,lang:this.lang,continuous:this.continuous,interim:this.interimResults};
+    diag("iframe n.º "+this.id,boton?"modo botón: toca 🎤 dentro del recuadro":"start() dentro del toque");
+    if(boton){ fr.contentWindow.__preparar(cfg); this._esperaToque=true; return; }
+    fr.contentWindow.__iniciar(cfg); }
+  stop(){ try{ if(this.fr) this.fr.contentWindow.__parar(); }catch(e){} }
+  abort(){ try{ if(this.fr) this.fr.contentWindow.__abortar(); }catch(e){} this._quitar(); }
+  _quitar(){ delete IFR[this.id]; if(this.fr){ this.fr.remove(); this.fr=null; GR_IFR.quitados++; } }
+}
+const GR_IFR={creados:0,quitados:0};
+window.addEventListener("message",e=>{ const m=e.data; if(!m||m.__sc!==1) return; const p=IFR[m.id];
+  if(!p||!p.fr||e.source!==p.fr.contentWindow) return;   // solo mensajes del iframe vivo de ese intento
+  if(m.ev==="result"){ p.onresult&&p.onresult({resultIndex:m.resultIndex,results:m.results.map(([t,f])=>Object.assign([{transcript:t}],{isFinal:f}))}); }
+  else if(m.ev==="error"){ p.onerror&&p.onerror({error:m.error}); }
+  else if(m.ev==="onend"){ const h=p.onend; p._quitar(); h&&h(); }
+  else { if(m.ev==="onstart") p._esperaToque=false; p[m.ev]&&p[m.ev](); } });
+/* ---- B · una sola sesión continua en iOS: se abre en el 1.er toque (continuous+interim) y no se para nunca.
+   Cada 🎤 es un «turno»: marca el inicio (nº de resultados y texto en ese momento) y el fin (silencio, Parar o tope). */
+const SES={rec:null,abierta:false,lista:[],turno:null,n:0};
+function abrirSesionB(){ const s=new SR(); SES.rec=s; SES.n++; SES.lista=[]; SES.abierta=false;
+  s.lang="en-US"; s.continuous=true; s.interimResults=true; s.maxAlternatives=1;
+  s.onstart=()=>{ SES.abierta=true; diag("sesión B abierta","n.º "+SES.n+" · continuous+interim"); if(SES.turno) SES.turno._arrancar(); };
+  s.onaudiostart=()=>diag("sesión B onaudiostart");
+  s.onspeechstart=()=>{ if(SES.turno) SES.turno._ev("onspeechstart"); };
+  s.onresult=e=>{ const l=[]; for(let i=0;i<e.results.length;i++) l.push(e.results[i][0].transcript); SES.lista=l; if(SES.turno) SES.turno._res(); };
+  s.onerror=e=>{ diag("sesión B onerror",e&&e.error); if(SES.turno) SES.turno._err(e); };
+  s.onend=()=>{ diag("sesión B cerrada por iOS","se reabre en el siguiente toque"); SES.rec=null; SES.abierta=false; if(SES.turno) SES.turno._cerrar(); };
+  s.start(); }
+class SRTurno{
+  constructor(){ this.lang="en-US"; this.continuous=false; this.interimResults=true; this.maxAlternatives=1; this._vivo=false; this._txt=""; }
+  start(){ SES.turno=this; this._vivo=true; this._base={n:SES.lista.length,txt:SES.lista.join(" ").replace(/\s+/g," ").trim()};
+    diag("turno B","desde resultado "+this._base.n+" · "+this._base.txt.length+" car previos");
+    if(!SES.rec) abrirSesionB(); else if(SES.abierta) setTimeout(()=>this._arrancar(),0); }
+  _arrancar(){ if(!this._vivo||this._ok) return; this._ok=true; this.onstart&&this.onstart(); this.onaudiostart&&this.onaudiostart(); }
+  _ev(n){ if(this._vivo&&this[n]) this[n](); }
+  _res(){ if(!this._vivo) return; const t=textoTurno(SES.lista,this._base); if(!t||t===this._txt) return; this._txt=t;
+    if(!this._voz){ this._voz=true; this._ev("onspeechstart"); }
+    this.onresult&&this.onresult({resultIndex:0,results:[Object.assign([{transcript:t}],{isFinal:false})]});
+    clearTimeout(this._sil); const ms=this._silMs||1500;
+    this._sil=setTimeout(()=>{ if(!this._vivo) return; diag("silencio (B)",ms+" ms sin texto nuevo → fin del turno"); this._ev("onspeechend"); this.stop(); },ms); }
+  _err(e){ if(this._vivo&&this.onerror) this.onerror(e); }
+  stop(){ if(this._vivo) setTimeout(()=>this._cerrar(),0); }   // NO para la sesión: solo cierra el turno
+  _cerrar(){ if(!this._vivo) return; this._vivo=false; clearTimeout(this._sil); if(SES.turno===this) SES.turno=null;
+    if(this._txt&&this.onresult) this.onresult({resultIndex:0,results:[Object.assign([{transcript:this._txt}],{isFinal:true})]});
+    this.onend&&this.onend(); }
+  abort(){ this._vivo=false; clearTimeout(this._sil); if(SES.turno===this) SES.turno=null; }
+}
+/* ---- C · reserva robusta: tras cada intento en iOS se guarda el estado en sessionStorage y se recarga sola;
+   la página nueva restaura frase, modo, intento, pantalla, resultado y panel 🩺, y queda lista para hablar con un toque. */
+function vistaActual(){ const b=document.querySelector('.tabs button[aria-selected="true"]'); return b?b.dataset.v:"frases"; }
+function estadoC(){ const vis=id=>$(id)&&!$(id).classList.contains("hidden");
+  return {v:vistaActual(),set:$("selSet").value,lista,idx,fam:$("selFam").value,q:$("selQ").value,
+    txt:$("txt").value,txt2:$("txt2").value,res:vis("res"),res2:vis("res2"),live:$("live").textContent,live2:$("live2").textContent,
+    reint:vis("bReint"),reint2:vis("bReint2"),t0,t1,fallos:fallosSeguidos,n:window._intentos||0,
+    diag:$("diagLog")?$("diagLog").textContent.slice(-8000):"",diagVis:vis("diagBox"),y:window.scrollY||0}; }
+function trasIntentoC(arrancado,area){
+  const ctl=ssGet("sc_c_ctl")||{sinAudio:0,ts:[]}, ahora=Date.now(); ctl.ts=(ctl.ts||[]).filter(t=>ahora-t<20000);
+  const p=planRecargaC({ios:ES_IOS,variante:VARIANTE,arrancado,texto:!!(area.value||"").trim(),sinAudio:ctl.sinAudio,tope:TOPE_RECARGAS_SIN_AUDIO,recientes:ctl.ts.length});
+  ctl.sinAudio=p.sinAudio; diag("variante C",p.motivo+(p.recargar?" → recarga":" → sin recarga"));
+  if(!p.recargar){ ssSet("sc_c_ctl",ctl); return; }
+  ctl.ts.push(ahora); ssSet("sc_c_ctl",ctl); ssSet("sc_c_estado",estadoC());
+  pintarMic("parado","recargando el micro…"); location.reload(); }
+function restaurarC(){ const e=ssGet("sc_c_estado"); if(!e) return false;
+  try{ sessionStorage.removeItem("sc_c_estado"); }catch(x){}
+  try{
+    if($("diagLog")&&e.diag) $("diagLog").textContent=e.diag+"——— ↻ recarga automática (variante C) ———\n";
+    if(e.diagVis) $("diagBox").classList.remove("hidden");
+    const tab=document.querySelector('.tabs button[data-v="'+e.v+'"]'); if(tab) tab.click();
+    $("selSet").value=e.set; if(e.lista&&e.lista.length){ lista=e.lista; idx=e.idx||0; mostrar(); } else cargarLista();
+    if(e.fam){ $("selFam").value=e.fam; construirPreguntas(); } if(e.q!=null) $("selQ").value=e.q; mostrarPregunta();
+    window._intentos=e.n||0; fallosSeguidos=e.fallos||0;
+    $("txt").value=e.txt||""; $("txt2").value=e.txt2||""; t0=e.t0; t1=e.t1;
+    window.__sinGuardar=true;   // el intento ya se guardó antes de recargar: solo se repinta
+    try{ if(e.res&&e.txt) comprobar(); if(e.res2&&e.txt2) analizar(); } finally{ window.__sinGuardar=false; }
+    const listo=" · 🔄 Micro listo: toca 🎤 y habla.";
+    $("live").textContent=(e.live||"")+(e.v==="frases"?listo:""); $("live2").textContent=(e.live2||"")+(e.v==="entrevista"?listo:"");
+    if(e.reint) $("bReint").classList.remove("hidden"); if(e.reint2) $("bReint2").classList.remove("hidden");
+    setTimeout(()=>window.scrollTo(0,e.y||0),0);
+    return true;
+  }catch(x){ diag("restaurar C falló",String(x&&x.message||x)); return false; } }
+
 function verReintento(btn,on){ const b=$(btn.id==="bHablar"?"bReint":"bReint2"); if(b) b.classList.toggle("hidden",!on); }
 /* T32: suelta el reconocedor actual SIN disparar sus eventos: nunca quedan dos abiertos ni uno colgado */
 function soltarRec(){ clearTimeout(vigiaFin); const r=rec; rec=null; escuchando=false;
@@ -825,7 +977,8 @@ function arrancar(btn,area,live){
   destino={btn,area,live}; area.value=""; if(btn.id==="bResp"){t0=Date.now();t1=null;}
   const resBox = btn.id==="bHablar" ? $("res") : $("res2"); resBox.classList.add("hidden");   // borra el resultado anterior
   window._intentos=(window._intentos||0)+1; const nIntento=window._intentos;
-  const r=GR.nuevo(SR); rec=r; r.lang="en-US"; r.maxAlternatives=1;
+  const r=GR.nuevo(motorSR()); rec=r; r._lugar=live; r._silMs=btn.id==="bResp"?3500:1500;   // T36: motor según variante (solo iOS)
+  r.lang="en-US"; r.maxAlternatives=1;
   r.continuous = ES_IOS ? false : (btn.id==="bResp");       // iOS: nunca continuous
   r.interimResults = true;                                  // T34: también en iOS, para guardar siempre el último parcial
   let finalTxt="", ultimo="", vigia=null, error="", arrancado=false, voz=false, nRes=0, parando=false, cerrado=false;
@@ -837,7 +990,9 @@ function arrancar(btn,area,live){
     if(parando) return; parando=true; setRec(btn,true,"⏳ Terminando…"); live.textContent="⏳ Terminando… (no cortes: espera a que procese)";
     diag("parar pedido",motivo+" · stop() en "+ESPERA_PARAR_IOS+" ms o al llegar resultado/onspeechend");
     r._tParar=setTimeout(()=>hacerStop("tras "+ESPERA_PARAR_IOS+" ms"),ESPERA_PARAR_IOS); };
-  r.onstart=()=>{ diag("onstart"); if(!mio()) return; arrancado=true; escuchando=true; setRec(btn,true); pintarMic("escuchando","intento "+nIntento); live.textContent="🎙️ Intento n.º "+nIntento+" · "+(ES_IOS?"escuchando… termina sola al callar":"escuchando…"); };
+  r.onstart=()=>{ diag("onstart"); if(!mio()) return; arrancado=true;
+    if(ES_IOS&&VARIANTE!=="BASE"&&!r._tTope){ const tp=topeMs(btn.id==="bResp"?"entrevista":"frase",location.search);   // D (T36): tope duro
+      r._tTope=setTimeout(()=>{ if(rec===r){ diag("⏱️ tope duro",tp+" ms → corta y usa el parcial"); hacerStop("tope "+tp+" ms"); } },tp); } escuchando=true; setRec(btn,true); pintarMic("escuchando","intento "+nIntento); live.textContent="🎙️ Intento n.º "+nIntento+" · "+(ES_IOS?"escuchando… termina sola al callar":"escuchando…"); };
   r.onaudiostart=()=>diag("onaudiostart");
   r.onspeechstart=()=>{ voz=true; diag("onspeechstart"); };
   r.onspeechend=()=>{ diag("onspeechend"); if(mio()&&parando) hacerStop("onspeechend"); };
@@ -847,9 +1002,11 @@ function arrancar(btn,area,live){
     diag("onresult",(hayFinal?"isFinal=true":"isFinal=false")+" · "+ultimo.length+" car · "+JSON.stringify(ultimo)); area.value=ultimo; if(!parando) live.textContent="🎙️ Intento n.º "+nIntento+" · "+(parcial||ultimo||"…");
     if(ES_IOS){ if(parando&&hayFinal) hacerStop("resultado final"); return; }   // iOS: sin vigía, termina sola
     if(btn.id==="bHablar"){ clearTimeout(vigia); vigia=setTimeout(()=>hacerStop("1,8 s de silencio"),1800); } };
-  r.onerror=e=>{ error=(e&&e.error)||"desconocido"; diag("onerror",error); if(!mio()) return; escuchando=false; setRec(btn,false);
+  r.onerror=e=>{ error=(e&&e.error)||"desconocido"; diag("onerror",error); if(ES_IOS&&VARIANTE==="A"&&error==="not-allowed") activarBotonA(error); if(!mio()) return; escuchando=false; setRec(btn,false);
     if(!(ES_IOS&&ultimo)){ live.textContent=textoErrorMic(error,ES_IOS); pintarMic("error",error); } };   // con parcial en iOS, decide onend
-  const fin=motivo=>{ if(cerrado) return; cerrado=true; GR.terminado(r); soltarAudio(); clearTimeout(vigia); clearTimeout(vigiaFin); clearTimeout(r._tParar); if(!mio()) return; rec=null; escuchando=false; setRec(btn,false); if(btn.id==="bResp") t1=Date.now();
+  const fin=motivo=>{ if(cerrado) return; cerrado=true; clearTimeout(r._tTope);
+    if(ES_IOS&&VARIANTE==="C"){ const arr=arrancado; setTimeout(()=>trasIntentoC(arr,area),0); }   // T36: tras procesar, recarga
+    GR.terminado(r); soltarAudio(); clearTimeout(vigia); clearTimeout(vigiaFin); clearTimeout(r._tParar); if(!mio()) return; rec=null; escuchando=false; setRec(btn,false); if(btn.id==="bResp") t1=Date.now();
     const p=planFinMic({ios:ES_IOS,finalTxt,parcial:ultimo,error,voz:voz||nRes>0,fallos:fallosSeguidos});
     diag("fin",(p.origen||"sin texto")+" · onspeechstart "+(voz?"sí":"NO")+" · "+nRes+" onresult"+(error?" · "+error:"")+(motivo?" · "+motivo:""));
     area.value=p.texto; fallosSeguidos=p.fallos;
@@ -865,16 +1022,18 @@ function arrancar(btn,area,live){
     if(p.planB) planB(btn,live); };
   r.onend=()=>{ diag("onend"); fin(""); };
   try{ r.start(); diag("start()",(r.continuous?"continuous ":"")+(r.interimResults?"interim":"sin interim")); pintarMic("escuchando","arrancando…");
-    setTimeout(()=>{ if(rec===r&&!arrancado){ soltarRec(); diag("sin onstart","6 s"); live.textContent=textoErrorMic("sin-arranque",ES_IOS); pintarMic("error","sin-arranque"); if(ES_IOS) verReintento(btn,true); } },6000); }
-  catch(err){ soltarRec(); const n=(err&&err.name)||"start"; diag("start() falló",n); fallosSeguidos++; live.textContent="No se pudo iniciar el micrófono ("+n+"). Pulsa 🔄 Reiniciar micrófono."; pintarMic("error",n); if(ES_IOS){ verReintento(btn,true); if(fallosSeguidos>=2) planB(btn,live); } }
+    setTimeout(()=>{ if(rec===r&&!arrancado&&!r._esperaToque){ soltarRec(); diag("sin onstart","6 s"); live.textContent=textoErrorMic("sin-arranque",ES_IOS); pintarMic("error","sin-arranque"); if(ES_IOS) verReintento(btn,true); } },6000); }
+  catch(err){ soltarRec(); const n=(err&&err.name)||"start"; diag("start() falló",n); fallosSeguidos++; if(ES_IOS&&VARIANTE==="A"&&/NotAllowed/i.test(n)) activarBotonA(n); live.textContent="No se pudo iniciar el micrófono ("+n+"). Pulsa 🔄 Reiniciar micrófono."; pintarMic("error",n); if(ES_IOS){ verReintento(btn,true); if(fallosSeguidos>=2) planB(btn,live); } }
 }
 function iniciarCapacidades(){
-  $("estadoMic").textContent = SR ? "🎤 Micrófono del navegador · sin Claude" : "Sin reconocimiento de voz · usa el teclado";
+  $("estadoMic").textContent = SR ? "🎤 Micrófono del navegador · sin Claude"+(ES_IOS?" · iOS · variante "+NOMBRE_VAR[VARIANTE]:"") : "Sin reconocimiento de voz · usa el teclado";
   pintarMic(SR?"parado":"error",SR?"":"sin SpeechRecognition");
   if(/[?&]diag=1/.test(location.search)) $("diagBox").classList.remove("hidden");
   /* T34: «Toca para reintentar» arranca DENTRO del gesto del usuario (el reintento automático podía dar not-allowed) */
   window.__diagReintento=()=>{ diagT0=performance.now(); diag("— reintento (toque) —"); };   // T35: los clics van por la delegación única
-  diag("inicio","v3.4 · "+(ES_IOS?"iOS":"no iOS")+" · SR="+(SR?"sí":"no")+" · "+navigator.userAgent);
+  const restaurado=ES_IOS&&VARIANTE==="C"&&restaurarC();   // T36: vuelve de una recarga automática con la frase y el resultado
+  diag("inicio","v3.5 · variante "+NOMBRE_VAR[VARIANTE]+(ES_IOS?"":" (no se usa: no es iOS)")+" · iOS: "+(ES_IOS?"sí":"no")+" ("+IOS.motivo+") · SR="+(SR?"sí":"no")+" · "+uaCorto(navigator.userAgent)+" · tope frase "+TOPE_FRASE_MS+" ms / entrevista "+TOPE_ENTREVISTA_MS+" ms"+(restaurado?" · ↻ estado restaurado":""));
+  diag("userAgent",navigator.userAgent);
   cargarProgreso();
 }
 
